@@ -74,8 +74,18 @@ class Conf(object):
         self.obj_count=0
         self.sect_count=0
         self.mat_param=dict()
+        self.iter_idx=0
     def __iter__(self):
-        return 
+        self.iter_idx=0
+        return self
+    def next(self):
+        self.iter_idx+=1
+        if self.iter_idx>len(self.list_cond)+len(self.list_diel):
+            raise StopIteration
+        if self.iter_idx<=len(self.list_cond):
+            return self.list_cond[self.iter_idx-1]
+        else:
+            return self.list_diel[self.iter_idx-len(self.list_cond)-1]
     def intersection(self,sect1,sect2):
         # Coeficients of Ax+By+D=0
         a1=-sect1.dy;
