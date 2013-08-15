@@ -121,6 +121,8 @@ def b2(m,n):
     if type(m) and type(n) is Section:
         return (m.center.x-n.center.x)*n.cost+(m.center.y-n.center.y)*n.sint
     else: raise TypeError
+
+'''
 def F1(a,b,dn):
     if type(a) and type(b) and type(dn) is float:
         t1=dn+2.0*b
@@ -130,6 +132,7 @@ def F1(a,b,dn):
         t5=t2**2.0+t3**2.0
         return b*log(t4/t5)+dn/2.0*log(t4*t5/16.0)-2.0*dn+t3*(atan2(t2,t3)+atan2(t1,t3))
     else:raise TypeError
+
 def F2(a,b,dn):
     if type(a) and type(b) and type(dn) is float:
         if a==0.0:
@@ -137,14 +140,17 @@ def F2(a,b,dn):
         else:
             return (atan2(dn-2.0*b,2.0*a)+atan2(dn+2.0*b,2.0*a))/a
     else:raise TypeError
+
 def F3(a,b,dn):
     if type(a) and type(b) and type(dn) is float:
         return log(((dn-2.0*b)**2.0+4.0*a**2.0)/((dn+2.0*b)**2.0+4.0*a**2.0))/2.0
     else:raise TypeError
+'''
 def Imn(m,n):
     if type(m) and type(n) is Section:
         return (m.center.y-n.center.y-b2(m,n)*n.sint)*F2(a2(m,n),b2(m,n),n.len)-n.sint*F3(a2(m,n),b2(m,n),n.len)
     else:raise TypeError
+
 def I_mn(m,n):
     if type(m) and type(n) is Section:
         return (m.center.y+n.center.y+b1(m,n)*n.sint)*F2(a1(m,n),b1(m,n),n.len)-n.sint*F3(a1(m,n),b1(m,n),n.len)
@@ -159,3 +165,46 @@ def Smn(config):
         #return []
     else: raise TypeError
 
+def sumatan(a1,a2,c):
+	if c==0.0:
+		return -(a1+a2)/(a1*a2)
+	c2=c*c
+	a12=a1*a2
+	if c2==a12:
+		if c*a1>0.0:
+			atg=pi/2
+		else:
+			atg=-pi/2
+	else:
+		atg=atan(c*(a1+a2)/(c2-a1*a2))
+		if a12/c2 > 1.:
+			if c*a1 > 0.0:
+				atg += pi
+			else:
+				atg-= pi
+	return atg
+
+def F1(a,b,dn2):
+	k=dn2+b
+	l=dn2-b
+	if a!=0.0:
+		k1=k*k+a*a
+		l1=l*l+a*a
+		return dn2*(log(k1*l1)-4.)+ 2.*a*sumatan(k,l,a)+ b*log(k1/l1)
+	return b*log(k*k/(l*l))+dn2*(log(l*l*k*k)-4.)
+def F2(a,b,dn2):
+	if a==0.0:
+		return sumatan(dn2+b, dn2-b, a)
+	return  sumatan(dn2+b,dn2-b,a)/a
+
+def F3(a,b,dn2):
+	k=dn2+b
+	l=dn2-b
+	k= k*k+a*a
+	l= l*l+a*a
+	return 0.5*log(fabs(l/k))
+
+def FI(a1, a2, c, dn):
+	if c!=0.0:
+		return 2*(c*(atan(a1/c)-atan(a2/c))-dn)+a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)
+	return a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)-2*dn
