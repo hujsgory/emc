@@ -63,8 +63,8 @@ class Conf(object):
     def __iter__(self):
         return self.listBounds.__iter__()
     def intersection(self,sect2):
-        for bound in self.listBounds:
-            sect1=bound['section']
+        for bound_m in self.listBounds:
+            sect1=bound_m['section']
             # Coeficients of Ax+By+D=0
             a1=-sect1.dy;
             b1= sect1.dx;
@@ -102,8 +102,8 @@ class Conf(object):
                     return True
         return False
     #
-    # @param mat_type: False - Conductor-Dielectric bound, True - Dielectric-Dielectric bound
-    # @param n_subint: number of bound's subintervals
+    # @param mat_type: False - Conductor-Dielectric bound_m, True - Dielectric-Dielectric bound_m
+    # @param n_subint: number of bound_m's subintervals
     # @param mat_param: erp - relative permittivity on right side of section, erm - on left side; tdp,tdm - tangent dielectric loss; 
     def add(self,section,mat_type,n_subint=1,**mat_param):
         if type(section) is Section and type(mat_type) is bool and type(n_subint) is int and type(mat_param) is dict:
@@ -162,11 +162,11 @@ def I_mn(m,n):
     else:raise TypeError
 def Smn(config):
     if type(config) is Conf:
-        for bound in config:
-            erp = bound['mat_param'].get('erp', 1.0)
-            erm = bound['mat_param'].get('erm', 1.0)
-            tdp = bound['mat_param'].get('tdp', 0.0)
-            tdm = bound['mat_param'].get('tdm', 0.0)
+        for bound_m in config:
+            erp = bound_m['mat_param'].get('erp', 1.0)
+            erm = bound_m['mat_param'].get('erm', 1.0)
+            tdp = bound_m['mat_param'].get('tdp', 0.0)
+            tdm = bound_m['mat_param'].get('tdm', 0.0)
         #return []
     else: raise TypeError
 '''
@@ -219,62 +219,65 @@ def FI(a1, a2, c, dn):
         return 2*(c*(atan(a1/c)-atan(a2/c))-dn)+a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)
     return a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)-2*dn
 
-def SmnAny2D(conf, bUpdate=False, bBlock=False):
-    sorted(conf.listBounds,key=lambda x: x['mat_type'])
+def SmnAny2D(conf):
+    if type(conf) is not Conf:
+        raise TypeError
+    bUpdate=False
+    conf.listBounds.sort(key=lambda x: x['mat_type'])
     m_size = reduce(lambda r,x: r+x['n_subint'],conf.listBounds,0)
-    if conf.iflg==False:
+    if not conf.iflg :
         m_size+=1 # add one row and one column
     ret=numpy.zeros((m_size,m_size))
     m = 0
-    for bound in conf.listBounds:
-        beg=bound['section']
-        n_subint=bound['n_subint']
+    for bound_m in conf.listBounds:
+        section_m=bound_m['section']
+        n_subint_m=bound_m['n_subint']
+        # check if conductors was processed
+        bDiel = bound_m['mat_type']
         # set parameters equal for all subsections
-        sinm,cosm=beg.sint,beg.cost
-        dxm,dym=beg.dx/n_subint, beg.dy/n_subint
-        first_subsection=beg.getSubinterval(0,n_subint)
+        sinm,cosm=section_m.sint,section_m.cost
+        dxm,dym=section_m.dx/n_subint_m, section_m.dy/n_subint_m
+        first_subsection=section_m.getSubinterval(0,n_subint_m)
         # xm, ym - centers of subinterval
         xm,ym = first_subsection.center.x, first_subsection.center.y
-        # check if conductors was processed
-        bDiel = bound['mat_type']
         er_plus=0.0
-        erp = bound['mat_param'].get('erp', 1.0)
-        erm = bound['mat_param'].get('erm', 1.0)
-        if bDiel==True: # edit Er for dielectrics
+        erp = bound_m['mat_param'].get('erp', 1.0)
+        erm = bound_m['mat_param'].get('erm', 1.0)
+        if bDiel : # edit Er for dielectrics
             # Pascal: p -> u, m -> d
             if erp==erm:
                 raise ValueError
             er_plus=(erp+erm)*pi/(erp-erm)
         # BEGIN cycle through subintervals
-        for subintervals in xrange(n_subint):
+        for subint_m in xrange(n_subint_m):
             # DO JUST THE SAME CALCULATIONS FOR INTEGRAL INTERVALS
             n = 0
-            for bound_i in conf.listBounds:
-                beg_i = bound_i['section'] # BEGIN cycle through integral intervals
-                n_subint_i=bound_i['n_subint']
+            for bound_n in conf.listBounds:
+                section_n = bound_n['section'] # BEGIN cycle through integral intervals
+                n_subint_n=bound_n['n_subint']
                 # set parameters equal for all subsections
-                sinn,cosn= beg_i.sint, beg_i.cost
-                dxn,dyn=beg_i.dx/n_subint_i, beg_i.dy/n_subint_i
-                dn = beg_i.len/n_subint_i
+                sinn,cosn= section_n.sint, section_n.cost
+                dxn,dyn=section_n.dx/n_subint_n, section_n.dy/n_subint_n
+                dn = section_n.len/n_subint_n
                 dn2 = dn/2.0
                 a1,b1=0.0,0.0
-                first_subsection_i=beg_i.getSubinterval(0,n_subint_i)
-                # xm, ym - centers of subinterval
+                first_subsection_i=section_n.getSubinterval(0,n_subint_n)
+                # xn, yn - centers of subinterval
                 xn,yn = first_subsection_i.center.x, first_subsection_i.center.y
                 dx = xm - xn
                 a2 = dx*sinn-(ym-yn)*cosn
                 b2 = dx*cosn+(ym-yn)*sinn
-                if conf.iflg==True:
+                if conf.iflg:
                     a1= dx*sinn+(ym+yn)*cosn
                     b1= dx*cosn-(ym+yn)*sinn
                 # BEGIN cycle through integral subintervals
-                for subintervals_i in xrange(n_subint_i):
+                for subint_n in xrange(n_subint_n):
                     # if updating existing smn matrix, we need to update the diagonal only, skip calculations for non-diagonal elements
-                    if(m == n) : 
-                        if bDiel==False:
+                    if not bUpdate or m==n: 
+                        if not bDiel:
                             # CALCULATION WITH CONDUCTORS
                             ret[m, n] = -F1(a2, b2, dn2)
-                            if conf.iflg==True :
+                            if conf.iflg:
                                 ret[m, n] += F1(a1, b1, dn2)
                                 b1 -= dn
                         else :
@@ -287,7 +290,7 @@ def SmnAny2D(conf, bUpdate=False, bBlock=False):
                                 Imn+=((dx   -b2*cosn)*f2-cosn*f3)*sinm  #  Ix*sinm
                             if cosm!=0.0:
                                 Imn-=((ym-yn-b2*sinn)*f2-sinn*f3)*cosm  # -Iy*cosm
-                            if conf.iflg==True:
+                            if conf.iflg:
                                 f2= F2(a1, b1, dn2)
                                 f3= F3(a1, b1, dn2)
                                 if sinm!=0.0:
@@ -302,7 +305,7 @@ def SmnAny2D(conf, bUpdate=False, bBlock=False):
                                 ret[m, n] = -1.0
                             ret[m, n]= Imn
                     else:
-                        if conf.iflg==True:
+                        if conf.iflg :
                             b1-= dn
                     b2-= dn
                     dx-= dxn
@@ -317,20 +320,165 @@ def SmnAny2D(conf, bUpdate=False, bBlock=False):
          # END cycle through subintervals
      # END cycle through intervals
     #   if(!conf->_bInfiniteGround) : # fill in additional row and column
-    if conf.iflg==False: # fill in additional row and column
+    if not conf.iflg : # fill in additional row and column
         sz = m_size-1
         n = 0
-        for bound in conf.listBounds: # cycle through conductors
-            beg=bound['section']
-            n_subint=bound['n_subint']
-            for si in xrange(n_subint):
-                if bound['mat_type']==False:
-                    si_len = beg.len/n_subint
+        for bound_m in conf.listBounds: # cycle through conductors
+            section_m=bound_m['section']
+            n_subint_m=bound_m['n_subint']
+            for si in xrange(n_subint_m):
+                if bound_m['mat_type']==False:
+                    si_len = section_m.len/n_subint_m
                     ret[n, sz]=si_len/ret[n, n]
-                    ret[sz, n]=si_len*bound['mat_param'].get('erp', 1.0)
+                    ret[sz, n]=si_len*bound_m['mat_param'].get('erp', 1.0)
                 else: # clear rest of matrix cells
                     ret[n,sz],ret[sz,n] = 0.0,0.0
                 n+=1
     return ret
 
+def SmnOrtho(conf) :
+    if type(conf) is not Conf:
+        raise TypeError
+    bUpdate=False
+    conf.listBounds.sort(key=lambda x: x['mat_type'])
+    m_size = reduce(lambda r,x: r+x['n_subint'],conf.listBounds,0)
+    if not conf.iflg: 
+        ++m_size; # add one row and one column
+    ret=numpy.zeros((m_size,m_size))
+    m = 0
+    for bound_m in conf: # section_mIN cycle through intervals
+        section_m=bound_m['section']
+        n_subint_m=bound_m['n_subint']
+        # check if conductors was processed
+        bDiel = bound_m['mat_type']
+        # set parameters equal for all subsections
+        sinm = section_m.sint
+        negcosm = -section_m.cost 
+        dxm,dym=section_m.dx/n_subint_m, section_m.dy/n_subint_m
+        first_subsection=section_m.getSubinterval(0,n_subint_m)
+        er_plus = 0
+        # xm, ym - centers of subinterval
+        xm,ym = first_subsection.center.x, first_subsection.center.y
+        er_plus=0.0
+        erp = bound_m['mat_param'].get('erp', 1.0)
+        erm = bound_m['mat_param'].get('erm', 1.0)
+        if bDiel: # edit Er for dielectrics
+            # Pascal: p -> u, m -> d
+            if erp==erm:
+                raise ValueError
+            er_plus=(erp+erm)*pi/(erp-erm)
+
+        # BEGIN cycle through subintervals
+        for subint_m in xrange(n_subint_m):
+            # DO JUST THE SAME CALCULATIONS FOR INTEGRAL INTERVALS
+            n = 0
+            for bound_n in conf.listBounds:
+                section_n = bound_n['section'] # BEGIN cycle through integral intervals
+                n_subint_n=bound_n['n_subint']
+                # set parameters equal for all subsections
+                sinn = section_n.sint
+                cosn = section_n.cost
+                dxn,dyn=section_n.dx/n_subint_n, section_n.dy/n_subint_n
+                dn = section_n.len/n_subint_n
+                dn2 = dn/2.0
+                a1 = 0. #/*b1 =0, */
+                c1,c2,da,fi=0.,0.,0.,0.
+                first_subsection_i=section_n.getSubinterval(0,n_subint_n)
+                # xn, yn - centers of subinterval
+                xn,yn = first_subsection_i.center.x, first_subsection_i.center.y
+                dx = xm - xn
+                a2 = dx*sinn - (ym-yn)*cosn
+                #/*,b2 = dx*cosn + (ym-yn)*sinn*/
+                if sinn == 0.0 : # ortho to Y: I == I1
+                    a1= dn2-xm+xn
+                    a2= a1-dn
+                    c1= ym- yn
+                    c2= ym+yn
+                    # WONTFIX: Refactoring
+                    da= dn * section_n.cost  # +-dn
+                else :  # ortho X: I - I1 later
+                    a1= dn2-ym+yn  # just for I, later more
+                    a2= a1- dn
+                    c1= c2= xm-xn
+                    da= dn*sinn    # +-dn
+
+                # BEGIN cycle through integral subintervals
+                for subint_n in xrange(n_subint_n):
+                    if not bUpdate or m==n:
+                        if not bDiel:
+                        # CALCULATION WITH CONDUCTORS
+                            fi= -FI(a1, a2, c1, dn)
+                            if conf.iflg :
+                                if sinn==0.0 :
+                                    fi+=FI(a1, a2, c2, dn)
+                                else :
+                                    fi+=FI(a1+2*ym, a2+2*ym, c2, dn)
+                        else :
+                            # CALCULATION WITH DIELECTRICS
+                            if sinm==0.0: #  m- ortho Y
+                                if sinn==0.0:
+                                    # both ortho Y
+                                    if c1:
+                                        fi= sumatan(a1,-a2,c1)
+                                    else:
+                                        fi= 0.0
+                                    if conf.iflg and c2!=0.0:
+                                        fi-= sumatan(a1,-a2,c2)
+                                
+                                else :  # m- ortho Y, n- ortho X
+                                    tmp3= c1*c1; #HERE с1==с2
+                                    fi= 0.5*log((a2*a2+tmp3)/(a1*a1+tmp3))
+                                    if conf.iflg :
+                                        tmp1= a1+2*ym
+                                        tmp2= tmp1- dn
+                                        fi-= 0.5*log((tmp2*tmp2+tmp3)/(tmp1*tmp1+tmp3))
+                                # HACK: subintervals direction fix by T.R. Gazizov - DISABLED
+                                fi*= negcosm
+                            else : #  m- ortho X
+                                if sinn==0.0 : # m- ortho X, n- ortho Y
+                                    fi= 0.5*log((a2*a2+c1*c1)/(a1*a1+c1*c1))
+                                    if conf.iflg :
+                                        fi-= 0.5*log((a2*a2+c2*c2)/(a1*a1+c2*c2))
+
+                                else :  # both ortho X
+                                    if c1 :
+                                        fi= sumatan(a1,-a2,c1)
+                                    else :
+                                        fi= 0.0
+                                    if conf.iflg and c2!=0.0:
+                                        fi-= sumatan(a1+2*ym,-a2-2*ym,c2)
+                                # HACK: subintervals direction fix by T.R. Gazizov - DISABLED
+                                fi*= sinm
+                            if(m==n):
+                                fi+= er_plus
+                         # END DIELECTRIC PROCESSING
+                        
+                        ret[m, n] = fi
+                    a1 += da
+                    a2 += da
+                    n+=1 # increment matrix index
+                    xn += dxn # calc center of next integral subsection
+                    yn += dyn
+                 # END cycle through integral subintervals
+             # END cycle through integral intervals
+            m+=1 # increment matrix index
+            xm += dxm; # calc center of next subsection
+            ym += dym
+         # END cycle through subintervals
+     # END cycle through intervals
+    if not conf.iflg : # fill in additional row and column
+        sz = m_size-1
+        n = 0
+        for bound_m in conf.listBounds: # cycle through conductors
+            section_m=bound_m['section']
+            n_subint_m=bound_m['n_subint']
+            for si in xrange(n_subint_m):
+                if bound_m['mat_type']==False:
+                    si_len = section_m.len/n_subint_m
+                    ret[n, sz]=si_len/ret[n, n]
+                    ret[sz, n]=si_len*bound_m['mat_param'].get('erp', 1.0)
+                else: # clear rest of matrix cells
+                    ret[n,sz],ret[sz,n] = 0.0,0.0
+                n+=1
+    return ret
 

@@ -72,7 +72,8 @@ class Test_mom2d_Smn(unittest.TestCase):
         self.assertAlmostEqual(I_mn(self.s1,self.s2)                                  , 0.655696736810798 , 15 , I_mn(self.s1,self.s2))
     '''
     def test_Smn(self):
-        self.assertEqual((SmnAny2D(self.conf)==[[3.84183366,1.05704],[0.122576,9.42477796]]).all(),True)
+        self.assertEqual((numpy.around(SmnAny2D(self.conf),decimals=5)==[[3.84183,	1.05704],	[ 0.12258,	9.42478]]).all(),True)
+        self.assertEqual((numpy.around(SmnOrtho(self.conf),decimals=5)==[[3.52549,	0.78204],	[-0.33587,	9.42478]]).all(),True)
 
 class Test_mom2d_Conf(unittest.TestCase):
     def setUp(self):
