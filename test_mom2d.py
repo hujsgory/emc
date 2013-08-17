@@ -47,6 +47,7 @@ class Test_mom2d_Smn(unittest.TestCase):
         self.conf=Conf()
         self.conf.add(self.s1, True , erp=2.0)
         self.conf.add(self.s2, False, erp=2.0)
+        self.smn=Smn(self.conf)
     '''
     def test_a1(self):
         self.assertAlmostEqual(a1(self.s1,self.s2)                                    , sqrt(2.0)         , 15 , (a1(self.s1,self.s2)  ,  sqrt(2.0)))
@@ -71,9 +72,12 @@ class Test_mom2d_Smn(unittest.TestCase):
         self.assertAlmostEqual(Imn (self.s1,self.s2)                                  ,-0.213850135243756 , 15 , Imn(self.s1,self.s2))
         self.assertAlmostEqual(I_mn(self.s1,self.s2)                                  , 0.655696736810798 , 15 , I_mn(self.s1,self.s2))
     '''
-    def test_Smn(self):
-        self.assertEqual((numpy.around(SmnAny2D(self.conf),decimals=5)==[[3.84183,	1.05704],	[ 0.12258,	9.42478]]).all(),True)
-        self.assertEqual((numpy.around(SmnOrtho(self.conf),decimals=5)==[[3.52549,	0.78204],	[-0.33587,	9.42478]]).all(),True)
+    def test_SmnAny2D(self):
+        self.smn.SmnAny2D()
+        self.assertEqual((numpy.around(self.smn.matrix,decimals=5)==[[3.84183,  1.05704],   [ 0.12258,  9.42478]]).all(),True)
+    def test_SmnOrtho(self):
+        self.smn.SmnOrtho()
+        self.assertEqual((numpy.around(self.smn.matrix,decimals=5)==[[3.52549,  0.78204],   [-0.33587,  9.42478]]).all(),True)
 
 class Test_mom2d_Conf(unittest.TestCase):
     def setUp(self):
