@@ -45,8 +45,10 @@ class Test_mom2d_Smn(unittest.TestCase):
         self.s1=Section(Coord(0.0,0.0),Coord(1.0,1.0))
         self.s2=Section(Coord(1.0,1.0),Coord(2.0,0.0))
         self.conf=Conf()
-        self.conf.add(self.s1, True , erp=2.0)
-        self.conf.add(self.s2, False, erp=2.0)
+        self.conf.diel
+        self.conf.add(self.s1, erp=2.0)
+        self.conf.cond
+        self.conf.add(self.s2, erp=2.0)
         self.smn=Smn(self.conf)
     '''
     def test_a1(self):
@@ -86,10 +88,10 @@ class Test_mom2d_Conf(unittest.TestCase):
         self.s3=Section(Coord(1.0,0.0),Coord(0.0,1.0))
         self.s4=Section(Coord(2.0,2.0),Coord(3.0,3.0))
         self.conf=Conf()
-        self.conf.add(self.s1, True , erp=2.0)
-        self.conf.add(self.s2, False, erp=2.0)
-        self.conf.add(self.s4, True , erp=2.0)
+        self.conf.add(self.s1, erp=2.0)
+        self.conf.add(self.s2, erp=2.0)
+        self.conf.add(self.s4, erp=2.0)
     def test_intersection(self):
-        self.assertRaises(ValueError,self.conf.add,self.s3,True,erp=2.0)
+        self.assertRaises(ValueError,self.conf.add,self.s3,erp=2.0)
 
 unittest.main()

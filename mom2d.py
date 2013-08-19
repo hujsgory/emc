@@ -60,6 +60,9 @@ class Conf(object):
     def __init__(self):
         self.list_bounds=[]
         self.iflg=True
+        self.mat_type=False    #type of material: False - conductor, True - dielectric
+        self.mat_count=0
+        self.sect_count=0
     def __iter__(self):
         return self.list_bounds.__iter__()
     def intersection(self,sect2):
@@ -105,16 +108,27 @@ class Conf(object):
     # @param mat_type: False - Conductor-Dielectric bound_m, True - Dielectric-Dielectric bound_m
     # @param n_subint: number of bound_m's subintervals
     # @param mat_param: erp - relative permittivity on right side of section, erm - on left side; tdp,tdm - tangent dielectric loss; 
-    def add(self,section,mat_type,n_subint=1,**mat_param):
-        if type(section) is Section and type(mat_type) is bool and type(n_subint) is int and type(mat_param) is dict:
+    def add(self,section,n_subint=1,**mat_param):
+        if type(section) is Section and type(n_subint) is int and type(mat_param) is dict:
             if self.intersection(section): raise ValueError
             erp = mat_param.get('erp', 1.0)
             erm = mat_param.get('erm', 1.0)
             if erp!=erm:
-                self.list_bounds.append({'section':section,'mat_type':mat_type,'n_subint':n_subint,'mat_param':mat_param})
+                self.list_bounds.append({'section':section,'mat_type':self.mat_type,'n_subint':n_subint,'mat_param':mat_param, 'mat_count': self.mat_count,'sect_count': self.sect_count})
+                self.sect_count+=1
             else: raise ValueError
         else: raise TypeError
-
+    @property
+    def cond(self):
+        self.mat_type=False
+        self.mat_count+=1
+        self.sect_count=0
+    @property
+    def diel(self):
+        self.mat_type=True
+        self.mat_count+=1
+        self.sect_count=0
+        
 '''
 def a1(m,n):
     if type(m) and type(n) is Section:
@@ -179,7 +193,7 @@ class Smn(object):
     def __init__(self,conf):
         if type(conf) is not Conf:
             raise TypeError
-        self.list_bounds=sorted(conf.list_bounds,key=lambda x: x['mat_type'])
+        self.list_bounds=sorted(conf.list_bounds,key=lambda x: [x['mat_type'],x['mat_count'],x['sect_count']])
         self.iflg=conf.iflg
         self.m_size = reduce(lambda r,x: r+x['n_subint'],self.list_bounds,0)
         if not self.iflg :
