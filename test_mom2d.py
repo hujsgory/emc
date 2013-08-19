@@ -5,7 +5,7 @@ from math import *
 import unittest
 import numpy
 
-class Test_mom2d_Coord(unittest.TestCase):
+class Test_Coord(unittest.TestCase):
     def setUp(self):
         self.m=Coord(1.0,1.0)
         self.n=Coord(0.0,0.0)
@@ -20,7 +20,7 @@ class Test_mom2d_Coord(unittest.TestCase):
     def test_len(self):
         self.assertEqual(self.m.len(self.n)   , sqrt(2.0)     , (self.m.len(self.n),      sqrt(2.0)))
 
-class Test_mom2d_Section(unittest.TestCase):
+class Test_Section(unittest.TestCase):
     def setUp(self):
         self.s=Section(Coord(1.0,1.0),Coord(0.0,0.0))
     def test_center(self):
@@ -40,7 +40,7 @@ class Test_mom2d_Section(unittest.TestCase):
         self.assertEqual(self.s.getSubinterval(2,4),Section(Coord(0.25,0.5),Coord(0.125,0.25)))
         self.assertRaises(ValueError,self.s.getSubinterval,4,4)
 
-class Test_mom2d_Smn(unittest.TestCase):
+class Test_Smn(unittest.TestCase):
     def setUp(self):
         self.s1=Section(Coord(0.0,0.0),Coord(1.0,1.0))
         self.s2=Section(Coord(1.0,1.0),Coord(2.0,0.0))
@@ -93,5 +93,9 @@ class Test_mom2d_Conf(unittest.TestCase):
         self.conf.add(self.s4, erp=2.0)
     def test_intersection(self):
         self.assertRaises(ValueError,self.conf.add,self.s3,erp=2.0)
+
+class Test_C(unittest.TestCase):
+	pass
+
 
 unittest.main()

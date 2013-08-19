@@ -188,6 +188,7 @@ def Smn(config):
 '''
 Port from smn.cpp
 '''
+
 class Smn(object):
     # list_bounds,iflg,matrix,m_size
     def __init__(self,conf):
@@ -262,7 +263,7 @@ class Smn(object):
             erp = bound_m['mat_param'].get('erp', 1.0)
             erm = bound_m['mat_param'].get('erm', 1.0)
             if bDiel : # edit Er for dielectrics
-                # Pascal: p -> u, m -> d
+                #Pascal: p -> u, m -> d
                 if erp==erm:
                     raise ValueError
                 er_plus=(erp+erm)*pi/(erp-erm)
