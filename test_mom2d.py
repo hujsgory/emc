@@ -85,6 +85,8 @@ class Test_mom2d_Conf(unittest.TestCase):
     def setUp(self):
     	self.c1=Coord(0.0,0.0)
     	self.c5=Coord(1.0,1.0)
+    	self.c6=Coord(0.25,0.25)
+    	self.c7=Coord(0.5,0.5)
     	self.cx2=Coord(0.5,0.0)
     	self.cx3=Coord(1.0,0.0)
     	self.cx4=Coord(2.0,0.0)
@@ -101,6 +103,8 @@ class Test_mom2d_Conf(unittest.TestCase):
     	self.conf(Section(self.cy3,self.cy4), erp=2.0)
     	self.conf(Section(self.cy3,self.c5) , erp=2.0)
     	self.assertRaises(ValueError,self.conf.add,Section(self.cy2,self.cy3),erp=2.0)
+    	self.conf(Section(self.c6,self.c5),erp=2.0)
+    	self.assertRaises(ValueError,self.conf.add,Section(self.c1,self.c7),erp=2.0)
 class Test_C(unittest.TestCase):
 	pass
 
