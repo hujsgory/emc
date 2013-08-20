@@ -83,17 +83,24 @@ class Test_Smn(unittest.TestCase):
 
 class Test_mom2d_Conf(unittest.TestCase):
     def setUp(self):
-        self.s1=Section(Coord(0.0,0.0),Coord(1.0,1.0))
-        self.s2=Section(Coord(1.0,1.0),Coord(2.0,0.0))
-        self.s3=Section(Coord(1.0,0.0),Coord(0.0,1.0))
-        self.s4=Section(Coord(2.0,2.0),Coord(3.0,3.0))
+    	self.c1=Coord(0.0,0.0)
+    	self.c5=Coord(1.0,1.0)
+    	self.cx2=Coord(0.5,0.0)
+    	self.cx3=Coord(1.0,0.0)
+    	self.cx4=Coord(2.0,0.0)
+    	self.cy2=Coord(0.0,0.5)
+    	self.cy3=Coord(0.0,1.0)
+    	self.cy4=Coord(0.0,2.0)
         self.conf=Conf()
-        self.conf.add(self.s1, erp=2.0)
-        self.conf.add(self.s2, erp=2.0)
-        self.conf.add(self.s4, erp=2.0)
     def test_intersection(self):
-        self.assertRaises(ValueError,self.conf.add,self.s3,erp=2.0)
-
+    	self.conf(Section(self.c1,self.cx3) , erp=2.0)
+    	self.conf(Section(self.cx3,self.cx4), erp=2.0)
+    	self.conf(Section(self.cx3,self.c5) , erp=2.0)
+    	self.assertRaises(ValueError,self.conf.add,Section(self.cx2,self.cx3),erp=2.0)
+    	self.conf(Section(self.c1,self.cy3) , erp=2.0)
+    	self.conf(Section(self.cy3,self.cy4), erp=2.0)
+    	self.conf(Section(self.cy3,self.c5) , erp=2.0)
+    	self.assertRaises(ValueError,self.conf.add,Section(self.cy2,self.cy3),erp=2.0)
 class Test_C(unittest.TestCase):
 	pass
 
