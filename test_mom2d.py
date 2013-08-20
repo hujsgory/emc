@@ -94,16 +94,18 @@ class Test_mom2d_Conf(unittest.TestCase):
     	self.cy3=Coord(0.0,1.0)
     	self.cy4=Coord(0.0,2.0)
         self.conf=Conf()
-    def test_intersection(self):
-    	self.conf(Section(self.c1,self.cx3) , erp=2.0)
-    	self.conf(Section(self.cx3,self.cx4), erp=2.0)
-    	self.conf(Section(self.cx3,self.c5) , erp=2.0)
+    def test_intersection_1(self):
+    	self.conf.add(Section(self.c1,self.cx3) , erp=2.0)
+    	self.conf.add(Section(self.cx3,self.cx4), erp=2.0)
+    	self.conf.add(Section(self.cx3,self.c5) , erp=2.0)
     	self.assertRaises(ValueError,self.conf.add,Section(self.cx2,self.cx3),erp=2.0)
-    	self.conf(Section(self.c1,self.cy3) , erp=2.0)
-    	self.conf(Section(self.cy3,self.cy4), erp=2.0)
-    	self.conf(Section(self.cy3,self.c5) , erp=2.0)
+    def test_intersection_2(self):
+    	self.conf.add(Section(self.c1,self.cy3) , erp=2.0)
+    	self.conf.add(Section(self.cy3,self.cy4), erp=2.0)
+    	self.conf.add(Section(self.cy3,self.c5) , erp=2.0)
     	self.assertRaises(ValueError,self.conf.add,Section(self.cy2,self.cy3),erp=2.0)
-    	self.conf(Section(self.c6,self.c5),erp=2.0)
+    def test_intersection_3(self):
+    	self.conf.add(Section(self.c6,self.c5),erp=2.0)
     	self.assertRaises(ValueError,self.conf.add,Section(self.c1,self.c7),erp=2.0)
 class Test_C(unittest.TestCase):
 	pass

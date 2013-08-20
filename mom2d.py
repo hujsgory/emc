@@ -88,7 +88,7 @@ class Conf(object):
             # Ends located in the different halfplane
             if h1<0. and h2<0.: return True
             # Collinear (both ends of segments lie on one line)
-            if a1==a2 and b1==b2 and d1==d2:
+            if atan2(a1,b1)==atan2(a2,b2) and d1==d2:
                 #   |------|======|------|
                 # fmin1  fmin2  fmax1  fmax2
                 fmin1=min(sect1.beg.x,sect1.end.x)
