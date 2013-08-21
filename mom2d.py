@@ -117,15 +117,12 @@ class Conf(object):
                 self.sect_count+=1
             else: raise ValueError
         else: raise TypeError
-    @property
-
     # @param mat_param: erp - relative permittivity on right side of section, erm - on left side; tdp,tdm - tangent dielectric loss; 
     def cond(self,**mat_param):
         self.mat_param=mat_param
         self.mat_type=False
         self.mat_count+=1
         self.sect_count=0
-    @property
     def diel(self,**mat_param):
         self.mat_param=mat_param
         self.mat_type=True
@@ -439,7 +436,10 @@ class Smn(object):
                         self.matrix[n,sz],self.matrix[sz,n] = 0.0,0.0
                     n+=1
 class RLCG(Smn):
-    def calcC():
-        self.size_C=filter(lambda x: x['mat_type']==False,self.list_bounds)
+    n_cond=0
+    def calcC(self):
+        self.conductors=filter(lambda x: x['mat_type']==False,self.list_bounds)
+        self.dielectrics=filter(lambda x: x['mat_type']==True,self.list_bounds)
+        sorted(self.conductors, key=lambda x: x['mat_count'])
+        self.n_cond=self.conductors[:-1].get('mat_count')
             
-

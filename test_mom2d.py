@@ -94,6 +94,7 @@ class Test_mom2d_Conf(unittest.TestCase):
         self.cy3=Coord(0.0,1.0)
         self.cy4=Coord(0.0,2.0)
         self.conf=Conf()
+        self.conf.cond(erm=2.0)
     def test_intersection_1(self):
         self.conf.add(Section(self.c1,self.cx3))
         self.conf.add(Section(self.cx3,self.cx4))
@@ -107,11 +108,21 @@ class Test_mom2d_Conf(unittest.TestCase):
     def test_intersection_3(self):
         self.conf.add(Section(self.c6,self.c5))
         self.assertRaises(ValueError,self.conf.add,Section(self.c1,self.c7))
+
 class Test_RLCG(unittest.TestCase):
     def setUp(self):
         self.conf=Conf()
-        
-        self.matrixC=RLGC(self.conf)
-
+        self.conf.diel(erp=2.0)
+        self.conf.add(Section(Coord(0.0,0.0),Coord(0.0,1.0)))
+        self.conf.add(Section(Coord(0.0,1.0),Coord(1.0,1.0)))
+        self.conf.cond(erp=2.0)
+        self.conf.add(Section(Coord(1.0,1.0),Coord(1.0,0.0)))
+        self.conf.add(Section(Coord(1.0,0.0),Coord(0.5,0.5)))
+        self.conf.cond(erp=3.0)
+        self.conf.add(Section(Coord(0.5,0.5),Coord(0.0,0.0)))
+        self.matrixC=RLCG(self.conf)
+    def test_calcC(self):
+        self.matrixC.calcC()
+        self.assertEqual(self.matrixC.n_cond,2,self.matrixC.n_cond)
 
 unittest.main()
