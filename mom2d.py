@@ -60,9 +60,10 @@ class Conf(object):
     def __init__(self):
         self.list_bounds=[]
         self.iflg=True
-        self.mat_type=False    #type of material: False - conductor, True - dielectric
+        self.mat_type=False     #mat_type: False - Conductor-Dielectric bound_m, True - Dielectric-Dielectric bound_m
         self.mat_count=0
         self.sect_count=0
+        self.mat_param={}
     def __iter__(self):
         return self.list_bounds.__iter__()
     def intersection(self,sect2):
@@ -104,87 +105,33 @@ class Conf(object):
                 if fmin1<fmax2 and fmin2<fmax1:
                     return True
         return False
-    #
-    # @param mat_type: False - Conductor-Dielectric bound_m, True - Dielectric-Dielectric bound_m
+
     # @param n_subint: number of bound_m's subintervals
-    # @param mat_param: erp - relative permittivity on right side of section, erm - on left side; tdp,tdm - tangent dielectric loss; 
-    def add(self,section,n_subint=1,**mat_param):
-        if type(section) is Section and type(n_subint) is int and type(mat_param) is dict:
+    def add(self,section,n_subint=1):
+        if type(section) is Section and type(n_subint) is int:
             if self.intersection(section): raise ValueError
-            erp = mat_param.get('erp', 1.0)
-            erm = mat_param.get('erm', 1.0)
+            erp = self.mat_param.get('erp', 1.0)
+            erm = self.mat_param.get('erm', 1.0)
             if erp!=erm:
-                self.list_bounds.append({'section':section,'mat_type':self.mat_type,'n_subint':n_subint,'mat_param':mat_param, 'mat_count': self.mat_count,'sect_count': self.sect_count})
+                self.list_bounds.append({'section':section,'mat_type':self.mat_type,'n_subint':n_subint,'mat_param':self.mat_param, 'mat_count': self.mat_count,'sect_count': self.sect_count})
                 self.sect_count+=1
             else: raise ValueError
         else: raise TypeError
     @property
-    def cond(self):
+
+    # @param mat_param: erp - relative permittivity on right side of section, erm - on left side; tdp,tdm - tangent dielectric loss; 
+    def cond(self,**mat_param):
+        self.mat_param=mat_param
         self.mat_type=False
         self.mat_count+=1
         self.sect_count=0
     @property
-    def diel(self):
+    def diel(self,**mat_param):
+        self.mat_param=mat_param
         self.mat_type=True
         self.mat_count+=1
         self.sect_count=0
         
-'''
-def a1(m,n):
-    if type(m) and type(n) is Section:
-        return (m.center.x-n.center.x)*n.sint+(m.center.y+n.center.y)*n.cost
-    else: raise TypeError
-def a2(m,n):
-    if type(m) and type(n) is Section:
-        return (m.center.x-n.center.x)*n.sint-(m.center.y-n.center.y)*n.cost
-    else: raise TypeError
-def b1(m,n):
-    if type(m) and type(n) is Section:
-        return (m.center.x-n.center.x)*n.cost-(m.center.y+n.center.y)*n.sint
-    else: raise TypeError
-def b2(m,n):
-    if type(m) and type(n) is Section:
-        return (m.center.x-n.center.x)*n.cost+(m.center.y-n.center.y)*n.sint
-    else: raise TypeError
-def F1(a,b,dn):
-    if type(a) and type(b) and type(dn) is float:
-        t1=dn+2.0*b
-        t2=dn-2.0*b
-        t3=2.0*a
-        t4=t1**2.0+t3**2.0
-        t5=t2**2.0+t3**2.0
-        return b*log(t4/t5)+dn/2.0*log(t4*t5/16.0)-2.0*dn+t3*(atan2(t2,t3)+atan2(t1,t3))
-    else:raise TypeError
-def F2(a,b,dn):
-    if type(a) and type(b) and type(dn) is float:
-        if a==0.0:
-            return 4.0*dn/(4.0*b**2.0+dn**2.0)
-        else:
-            return (atan2(dn-2.0*b,2.0*a)+atan2(dn+2.0*b,2.0*a))/a
-    else:raise TypeError
-def F3(a,b,dn):
-    if type(a) and type(b) and type(dn) is float:
-        return log(((dn-2.0*b)**2.0+4.0*a**2.0)/((dn+2.0*b)**2.0+4.0*a**2.0))/2.0
-    else:raise TypeError
-def Imn(m,n):
-    if type(m) and type(n) is Section:
-        return (m.center.y-n.center.y-b2(m,n)*n.sint)*F2(a2(m,n),b2(m,n),n.len)-n.sint*F3(a2(m,n),b2(m,n),n.len)
-    else:raise TypeError
-def I_mn(m,n):
-    if type(m) and type(n) is Section:
-        return (m.center.y+n.center.y+b1(m,n)*n.sint)*F2(a1(m,n),b1(m,n),n.len)-n.sint*F3(a1(m,n),b1(m,n),n.len)
-    else:raise TypeError
-def Smn(config):
-    if type(config) is Conf:
-        for bound_m in config:
-            erp = bound_m['mat_param'].get('erp', 1.0)
-            erm = bound_m['mat_param'].get('erm', 1.0)
-            tdp = bound_m['mat_param'].get('tdp', 0.0)
-            tdm = bound_m['mat_param'].get('tdm', 0.0)
-        #return []
-    else: raise TypeError
-'''
-
 '''
 Port from smn.cpp
 '''
@@ -199,7 +146,6 @@ class Smn(object):
         self.m_size = reduce(lambda r,x: r+x['n_subint'],self.list_bounds,0)
         if not self.iflg :
             self.m_size+=1 # add one row and one column
-        self.matrix=numpy.zeros((self.m_size,self.m_size))
 
     def sumatan(self,a1,a2,c):
         if c==0.0:
@@ -246,6 +192,7 @@ class Smn(object):
         return a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)-2*dn
     
     def SmnAny2D(self):
+        self.matrix=numpy.zeros((self.m_size,self.m_size))
         bUpdate=False
         m = 0
         for bound_m in self.list_bounds:
@@ -354,10 +301,11 @@ class Smn(object):
                         self.matrix[n,sz],self.matrix[sz,n] = 0.0,0.0
                     n+=1
     
-    def SmnOrtho(self) :
+    def SmnOrtho(self):
+        self.matrix=numpy.zeros((self.m_size,self.m_size))
         bUpdate=False
         m = 0
-        for bound_m in self.list_bounds: # section_mIN cycle through intervals
+        for bound_m in self.list_bounds: # BEGIN cycle through intervals
             section_m=bound_m['section']
             n_subint_m=bound_m['n_subint']
             # check if conductors was processed
@@ -490,4 +438,8 @@ class Smn(object):
                     else: # clear rest of matrix cells
                         self.matrix[n,sz],self.matrix[sz,n] = 0.0,0.0
                     n+=1
+class RLCG(Smn):
+    def calcC():
+        self.size_C=filter(lambda x: x['mat_type']==False,self.list_bounds)
+            
 

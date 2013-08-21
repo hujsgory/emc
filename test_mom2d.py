@@ -45,10 +45,10 @@ class Test_Smn(unittest.TestCase):
         self.s1=Section(Coord(0.0,0.0),Coord(1.0,1.0))
         self.s2=Section(Coord(1.0,1.0),Coord(2.0,0.0))
         self.conf=Conf()
-        self.conf.diel
-        self.conf.add(self.s1, erp=2.0)
-        self.conf.cond
-        self.conf.add(self.s2, erp=2.0)
+        self.conf.diel(erp=2.0)
+        self.conf.add(self.s1)
+        self.conf.cond(erp=2.0)
+        self.conf.add(self.s2)
         self.smn=Smn(self.conf)
     '''
     def test_a1(self):
@@ -83,32 +83,35 @@ class Test_Smn(unittest.TestCase):
 
 class Test_mom2d_Conf(unittest.TestCase):
     def setUp(self):
-    	self.c1=Coord(0.0,0.0)
-    	self.c5=Coord(1.0,1.0)
-    	self.c6=Coord(0.25,0.25)
-    	self.c7=Coord(0.5,0.5)
-    	self.cx2=Coord(0.5,0.0)
-    	self.cx3=Coord(1.0,0.0)
-    	self.cx4=Coord(2.0,0.0)
-    	self.cy2=Coord(0.0,0.5)
-    	self.cy3=Coord(0.0,1.0)
-    	self.cy4=Coord(0.0,2.0)
+        self.c1=Coord(0.0,0.0)
+        self.c5=Coord(1.0,1.0)
+        self.c6=Coord(0.25,0.25)
+        self.c7=Coord(0.5,0.5)
+        self.cx2=Coord(0.5,0.0)
+        self.cx3=Coord(1.0,0.0)
+        self.cx4=Coord(2.0,0.0)
+        self.cy2=Coord(0.0,0.5)
+        self.cy3=Coord(0.0,1.0)
+        self.cy4=Coord(0.0,2.0)
         self.conf=Conf()
     def test_intersection_1(self):
-    	self.conf.add(Section(self.c1,self.cx3) , erp=2.0)
-    	self.conf.add(Section(self.cx3,self.cx4), erp=2.0)
-    	self.conf.add(Section(self.cx3,self.c5) , erp=2.0)
-    	self.assertRaises(ValueError,self.conf.add,Section(self.cx2,self.cx3),erp=2.0)
+        self.conf.add(Section(self.c1,self.cx3))
+        self.conf.add(Section(self.cx3,self.cx4))
+        self.conf.add(Section(self.cx3,self.c5))
+        self.assertRaises(ValueError,self.conf.add,Section(self.cx2,self.cx3))
     def test_intersection_2(self):
-    	self.conf.add(Section(self.c1,self.cy3) , erp=2.0)
-    	self.conf.add(Section(self.cy3,self.cy4), erp=2.0)
-    	self.conf.add(Section(self.cy3,self.c5) , erp=2.0)
-    	self.assertRaises(ValueError,self.conf.add,Section(self.cy2,self.cy3),erp=2.0)
+        self.conf.add(Section(self.c1,self.cy3))
+        self.conf.add(Section(self.cy3,self.cy4))
+        self.conf.add(Section(self.cy3,self.c5))
+        self.assertRaises(ValueError,self.conf.add,Section(self.cy2,self.cy3))
     def test_intersection_3(self):
-    	self.conf.add(Section(self.c6,self.c5),erp=2.0)
-    	self.assertRaises(ValueError,self.conf.add,Section(self.c1,self.c7),erp=2.0)
-class Test_C(unittest.TestCase):
-	pass
+        self.conf.add(Section(self.c6,self.c5))
+        self.assertRaises(ValueError,self.conf.add,Section(self.c1,self.c7))
+class Test_RLCG(unittest.TestCase):
+    def setUp(self):
+        self.conf=Conf()
+        
+        self.matrixC=RLGC(self.conf)
 
 
 unittest.main()
