@@ -438,8 +438,6 @@ class Smn(object):
 class RLCG(Smn):
     n_cond=0
     def calcC(self):
-        self.conductors=filter(lambda x: x['mat_type']==False,self.list_bounds)
-        self.dielectrics=filter(lambda x: x['mat_type']==True,self.list_bounds)
-        sorted(self.conductors, key=lambda x: x['mat_count'])
-        self.n_cond=self.conductors[:-1].get('mat_count')
+        self.conductors= filter(lambda x: x['mat_type']==False,self.list_bounds)
+        self.n_cond=len(set(map(lambda x: x['mat_count'],self.conductors)))
             
