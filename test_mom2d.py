@@ -120,9 +120,10 @@ class Test_RLCG(unittest.TestCase):
         self.conf.add(Section(Coord(1.0,0.0),Coord(0.5,0.5)))
         self.conf.cond(erp=3.0)
         self.conf.add(Section(Coord(0.5,0.5),Coord(0.0,0.0)))
-        self.matrixC=RLCG(self.conf)
+        self.rlgc=RLCG(self.conf)
     def test_calcC(self):
-        self.matrixC.calcC()
-        self.assertEqual(self.matrixC.n_cond,2,self.matrixC.n_cond)
+        self.rlgc.calcC()
+        self.assertEqual(self.rlgc.n_cond,2,self.rlgc.n_cond)
+        self.assertEqual((numpy.around(self.rlgc.mC,5)==[[1.08443e-010,-3.39627e-011],[-4.60713e-011,1.25195e-010]]).all(),True)
 
 unittest.main()

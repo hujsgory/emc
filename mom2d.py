@@ -5,9 +5,9 @@ import numpy
 
 class Coord(object):
     def __init__(self,x=0.0,y=0.0):
-        if type(x) is float and type(y) is float:
-            self.x,self.y=x,y
-        else: raise TypeError
+ #       if type(x) is float and type(y) is float:
+        self.x,self.y=float(x),float(y)
+#        else: raise TypeError
     def __eq__(self,_coord):
         return self.x==_coord.x and self.y==_coord.y
     def __ne__(self,_coord):
@@ -436,8 +436,9 @@ class Smn(object):
                         self.matrix[n,sz],self.matrix[sz,n] = 0.0,0.0
                     n+=1
 class RLCG(Smn):
-    n_cond=0
     def calcC(self):
-        self.conductors= filter(lambda x: x['mat_type']==False,self.list_bounds)
-        self.n_cond=len(set(map(lambda x: x['mat_count'],self.conductors)))
+        self.n_cond=len(set(map(lambda x: x['mat_count'],filter(lambda x: x['mat_type']==False,self.list_bounds))))
+        self.SmnAny2D()
+        self.mC = numpy.zeros((self.n_cond,self.n_cond))
+        
             
