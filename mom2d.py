@@ -3,6 +3,9 @@
 from math import *
 import numpy
 
+eps0=8.854187817e-12
+Coef_C = 4*pi*eps0
+
 class Coord(object):
     def __init__(self,x=0.0,y=0.0):
  #       if type(x) is float and type(y) is float:
@@ -189,7 +192,7 @@ class Smn(object):
         return a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)-2*dn
     
     def SmnAny2D(self):
-        self.matrix=numpy.zeros((self.m_size,self.m_size))
+        self.matrix_S=numpy.zeros((self.m_size,self.m_size))
         bUpdate=False
         m = 0
         for bound_m in self.list_bounds:
@@ -239,9 +242,9 @@ class Smn(object):
                         if not bUpdate or m==n: 
                             if not bDiel:
                                 # CALCULATION WITH CONDUCTORS
-                                self.matrix[m, n] = -self.F1(a2, b2, dn2)
+                                self.matrix_S[m, n] = -self.F1(a2, b2, dn2)
                                 if self.iflg:
-                                    self.matrix[m, n] += self.F1(a1, b1, dn2)
+                                    self.matrix_S[m, n] += self.F1(a1, b1, dn2)
                                     b1 -= dn
                             else :
                                 # CALCULATION WITH DIELECTRICS
@@ -265,8 +268,8 @@ class Smn(object):
                                 if m==n:
                                     Imn += er_plus
                                 if Imn == 0.0:
-                                    self.matrix[m, n] = -1.0
-                                self.matrix[m, n]= Imn
+                                    self.matrix_S[m, n] = -1.0
+                                self.matrix_S[m, n]= Imn
                         else:
                             if self.iflg :
                                 b1-= dn
@@ -292,14 +295,14 @@ class Smn(object):
                 for si in xrange(n_subint_m):
                     if bound_m['mat_type']==False:
                         si_len = section_m.len/n_subint_m
-                        self.matrix[n, sz]=si_len/self.matrix[n, n]
-                        self.matrix[sz, n]=si_len*bound_m['mat_param'].get('erp', 1.0)
+                        self.matrix_S[n, sz]=si_len/self.matrix_S[n, n]
+                        self.matrix_S[sz, n]=si_len*bound_m['mat_param'].get('erp', 1.0)
                     else: # clear rest of matrix cells
-                        self.matrix[n,sz],self.matrix[sz,n] = 0.0,0.0
+                        self.matrix_S[n,sz],self.matrix_S[sz,n] = 0.0,0.0
                     n+=1
     
     def SmnOrtho(self):
-        self.matrix=numpy.zeros((self.m_size,self.m_size))
+        self.matrix_S=numpy.zeros((self.m_size,self.m_size))
         bUpdate=False
         m = 0
         for bound_m in self.list_bounds: # BEGIN cycle through intervals
@@ -408,7 +411,7 @@ class Smn(object):
                                     fi+= er_plus
                              # END DIELECTRIC PROCESSING
                             
-                            self.matrix[m, n] = fi
+                            self.matrix_S[m, n] = fi
                         a1 += da
                         a2 += da
                         n+=1 # increment matrix index
@@ -430,15 +433,24 @@ class Smn(object):
                 for si in xrange(n_subint_m):
                     if bound_m['mat_type']==False:
                         si_len = section_m.len/n_subint_m
-                        self.matrix[n, sz]=si_len/self.matrix[n, n]
-                        self.matrix[sz, n]=si_len*bound_m['mat_param'].get('erp', 1.0)
+                        self.matrix_S[n, sz]=si_len/self.matrix_S[n, n]
+                        self.matrix_S[sz, n]=si_len*bound_m['mat_param'].get('erp', 1.0)
                     else: # clear rest of matrix cells
-                        self.matrix[n,sz],self.matrix[sz,n] = 0.0,0.0
+                        self.matrix_S[n,sz],self.matrix_S[sz,n] = 0.0,0.0
                     n+=1
 class RLCG(Smn):
     def calcC(self):
-        self.n_cond=len(set(map(lambda x: x['mat_count'],filter(lambda x: x['mat_type']==False,self.list_bounds))))
+        cond_sect=(filter(lambda x: x['mat_type']==False,self.list_bounds))
+        self.n_cond=len(set(map(lambda x: x['mat_count'],cond_sect)))
         self.SmnAny2D()
         self.mC = numpy.zeros((self.n_cond,self.n_cond))
-        
+
+        self.matrix_Q = numpy.zeros((self.m_size,self.n_cond))
+        beg,n,old_cond=0,0,cond_sect[0]['mat_count']
+        for section in cond_sect:
+            if old_cond!=section['mat_count']: n+=1
+            old_cond=section['mat_count']
+            end=beg+section['n_subint']
+            self.matrix_Q[beg:end,n]=Coef_C
+            beg=end
             

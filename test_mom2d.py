@@ -76,10 +76,10 @@ class Test_Smn(unittest.TestCase):
     '''
     def test_SmnAny2D(self):
         self.smn.SmnAny2D()
-        self.assertEqual((numpy.around(self.smn.matrix,decimals=5)==[[3.84183,  1.05704],   [ 0.12258,  9.42478]]).all(),True)
+        self.assertEqual((numpy.around(self.smn.matrix_S,decimals=5)==[[3.84183,  1.05704],   [ 0.12258,  9.42478]]).all(),True)
     def test_SmnOrtho(self):
         self.smn.SmnOrtho()
-        self.assertEqual((numpy.around(self.smn.matrix,decimals=5)==[[3.52549,  0.78204],   [-0.33587,  9.42478]]).all(),True)
+        self.assertEqual((numpy.around(self.smn.matrix_S,decimals=5)==[[3.52549,  0.78204],   [-0.33587,  9.42478]]).all(),True)
 
 class Test_mom2d_Conf(unittest.TestCase):
     def setUp(self):
@@ -113,17 +113,20 @@ class Test_RLCG(unittest.TestCase):
     def setUp(self):
         self.conf=Conf()
         self.conf.diel(erp=2.0)
-        self.conf.add(Section(Coord(0.0,0.0),Coord(0.0,1.0)))
-        self.conf.add(Section(Coord(0.0,1.0),Coord(1.0,1.0)))
+        self.conf.add(Section(Coord(0.0,0.0),Coord(0.0,1.0)),1)
+        self.conf.add(Section(Coord(0.0,1.0),Coord(1.0,1.0)),2)
         self.conf.cond(erp=2.0)
-        self.conf.add(Section(Coord(1.0,1.0),Coord(1.0,0.0)))
-        self.conf.add(Section(Coord(1.0,0.0),Coord(0.5,0.5)))
+        self.conf.add(Section(Coord(1.0,1.0),Coord(1.0,0.0)),2)
+        self.conf.add(Section(Coord(1.0,0.0),Coord(0.5,0.5)),3)
         self.conf.cond(erp=3.0)
-        self.conf.add(Section(Coord(0.5,0.5),Coord(0.0,0.0)))
+        self.conf.add(Section(Coord(0.5,0.5),Coord(0.0,0.0)),4)
         self.rlgc=RLCG(self.conf)
-    def test_calcC(self):
         self.rlgc.calcC()
+    def test_calcC1(self):
         self.assertEqual(self.rlgc.n_cond,2,self.rlgc.n_cond)
+    def test_calcC2(self):
+        self.assertEqual((self.rlgc.matrix_Q==[[Coef_C,0],[Coef_C,0],[Coef_C,0],[Coef_C,0],[Coef_C,0],[0,Coef_C],[0,Coef_C],[0,Coef_C],[0,Coef_C],[0,0],[0,0],[0,0]]).all(),True)
+    def test_calcC3(self):
         self.assertEqual((numpy.around(self.rlgc.mC,5)==[[1.08443e-010,-3.39627e-011],[-4.60713e-011,1.25195e-010]]).all(),True)
 
 unittest.main()
