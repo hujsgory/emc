@@ -127,6 +127,9 @@ class Test_RLCG(unittest.TestCase):
     def test_calcC2(self):
         self.assertEqual((self.rlgc.matrix_Q==[[Coef_C,0],[Coef_C,0],[Coef_C,0],[Coef_C,0],[Coef_C,0],[0,Coef_C],[0,Coef_C],[0,Coef_C],[0,Coef_C],[0,0],[0,0],[0,0]]).all(),True)
     def test_calcC3(self):
-        self.assertEqual((numpy.around(self.rlgc.mC,5)==[[1.08443e-010,-3.39627e-011],[-4.60713e-011,1.25195e-010]]).all(),True)
+        err=abs(self.rlgc.matrix_S-map(lambda x: map(float,x.split()),open("test_mom2d_test_RLGC_test_Calc3.txt").readlines()))
+        self.assertEqual((err<2e-4).all(),True)
+    def test_calcC4(self):
+        self.assertEqual((numpy.around(self.rlgc.mC,5)==[[1.53885e-010,-4.32953e-011],[-6.27153e-011,2.06411e-010]]).all(),True)
 
 unittest.main()

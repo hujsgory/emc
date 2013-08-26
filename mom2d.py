@@ -8,9 +8,7 @@ Coef_C = 4*pi*eps0
 
 class Coord(object):
     def __init__(self,x=0.0,y=0.0):
- #       if type(x) is float and type(y) is float:
         self.x,self.y=float(x),float(y)
-#        else: raise TypeError
     def __eq__(self,_coord):
         return self.x==_coord.x and self.y==_coord.y
     def __ne__(self,_coord):
