@@ -1,3 +1,28 @@
+    '''
+    def test_a1(self):
+        self.assertAlmostEqual(a1(self.s1,self.s2)                                    , sqrt(2.0)         , 15 , (a1(self.s1,self.s2)  ,  sqrt(2.0)))
+    def test_b1(self):
+        self.assertAlmostEqual(b1(self.s1,self.s2)                                    , 0.0               , 15 , (b1(self.s1,self.s2)  ,  0.0))
+    def test_a2(self):
+        self.assertAlmostEqual(a2(self.s1,self.s2)                                    , sqrt(0.5)         , 14 , (a2(self.s1,self.s2)  ,  sqrt(0.5)))
+    def test_b2(self):
+        self.assertAlmostEqual(b2(self.s1,self.s2)                                    ,-sqrt(0.5)         , 14 , (b2(self.s1,self.s2)  , -sqrt(0.5)))
+    def test_F1(self):
+        self.assertAlmostEqual(F1(a1(self.s1,self.s2),b1(self.s1,self.s2),self.s2.len), 1.0901906025902008, 15 , F1(a1(self.s1,self.s2), b1(self.s1,self.s2),self.s2.len))
+        self.assertAlmostEqual(F1(a2(self.s1,self.s2),b2(self.s1,self.s2),self.s2.len), 0.033148387615394 , 15 , F1(a2(self.s1,self.s2), b2(self.s1,self.s2),self.s2.len))
+    def test_F2(self):
+        self.assertAlmostEqual(F2(a1(self.s1,self.s2),b1(self.s1,self.s2),self.s2.len), 0.655696736810798 , 15 , F2(a1(self.s1,self.s2), b1(self.s1,self.s2),self.s2.len))
+        self.assertAlmostEqual(F2(a2(self.s1,self.s2),b2(self.s1,self.s2),self.s2.len), 1.565744732268386 , 15 , F2(a2(self.s1,self.s2), b2(self.s1,self.s2),self.s2.len))
+        self.assertAlmostEqual(F2(                0.0,b1(self.s1,self.s2),self.s2.len), 2.0*sqrt(2)       , 15 , F2(0.0                , b1(self.s1,self.s2),self.s2.len))
+        self.assertAlmostEqual(F2(                0.0,b2(self.s1,self.s2),self.s2.len), sqrt(2)           , 15 , F2(0.0                , b2(self.s1,self.s2),self.s2.len))
+    def test_F3(self):
+        self.assertAlmostEqual(F3(a1(self.s1,self.s2),b1(self.s1,self.s2),self.s2.len), 0.0               , 15 , F3(a1(self.s1,self.s2), b1(self.s1,self.s2),self.s2.len))
+        self.assertAlmostEqual(F3(a2(self.s1,self.s2),b2(self.s1,self.s2),self.s2.len), 0.5*log(5)        , 15 , F3(a2(self.s1,self.s2), b2(self.s1,self.s2),self.s2.len))
+    def test_Imn(self):
+        self.assertAlmostEqual(Imn (self.s1,self.s2)                                  ,-0.213850135243756 , 15 , Imn(self.s1,self.s2))
+        self.assertAlmostEqual(I_mn(self.s1,self.s2)                                  , 0.655696736810798 , 15 , I_mn(self.s1,self.s2))
+    '''
+
 def a1(m,n):
     if type(m) and type(n) is Section:
         return (m.center.x-n.center.x)*n.sint+(m.center.y+n.center.y)*n.cost

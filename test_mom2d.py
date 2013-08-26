@@ -50,36 +50,12 @@ class Test_Smn(unittest.TestCase):
         self.conf.cond(erp=2.0)
         self.conf.add(self.s2)
         self.smn=Smn(self.conf)
-    '''
-    def test_a1(self):
-        self.assertAlmostEqual(a1(self.s1,self.s2)                                    , sqrt(2.0)         , 15 , (a1(self.s1,self.s2)  ,  sqrt(2.0)))
-    def test_b1(self):
-        self.assertAlmostEqual(b1(self.s1,self.s2)                                    , 0.0               , 15 , (b1(self.s1,self.s2)  ,  0.0))
-    def test_a2(self):
-        self.assertAlmostEqual(a2(self.s1,self.s2)                                    , sqrt(0.5)         , 14 , (a2(self.s1,self.s2)  ,  sqrt(0.5)))
-    def test_b2(self):
-        self.assertAlmostEqual(b2(self.s1,self.s2)                                    ,-sqrt(0.5)         , 14 , (b2(self.s1,self.s2)  , -sqrt(0.5)))
-    def test_F1(self):
-        self.assertAlmostEqual(F1(a1(self.s1,self.s2),b1(self.s1,self.s2),self.s2.len), 1.0901906025902008, 15 , F1(a1(self.s1,self.s2), b1(self.s1,self.s2),self.s2.len))
-        self.assertAlmostEqual(F1(a2(self.s1,self.s2),b2(self.s1,self.s2),self.s2.len), 0.033148387615394 , 15 , F1(a2(self.s1,self.s2), b2(self.s1,self.s2),self.s2.len))
-    def test_F2(self):
-        self.assertAlmostEqual(F2(a1(self.s1,self.s2),b1(self.s1,self.s2),self.s2.len), 0.655696736810798 , 15 , F2(a1(self.s1,self.s2), b1(self.s1,self.s2),self.s2.len))
-        self.assertAlmostEqual(F2(a2(self.s1,self.s2),b2(self.s1,self.s2),self.s2.len), 1.565744732268386 , 15 , F2(a2(self.s1,self.s2), b2(self.s1,self.s2),self.s2.len))
-        self.assertAlmostEqual(F2(                0.0,b1(self.s1,self.s2),self.s2.len), 2.0*sqrt(2)       , 15 , F2(0.0                , b1(self.s1,self.s2),self.s2.len))
-        self.assertAlmostEqual(F2(                0.0,b2(self.s1,self.s2),self.s2.len), sqrt(2)           , 15 , F2(0.0                , b2(self.s1,self.s2),self.s2.len))
-    def test_F3(self):
-        self.assertAlmostEqual(F3(a1(self.s1,self.s2),b1(self.s1,self.s2),self.s2.len), 0.0               , 15 , F3(a1(self.s1,self.s2), b1(self.s1,self.s2),self.s2.len))
-        self.assertAlmostEqual(F3(a2(self.s1,self.s2),b2(self.s1,self.s2),self.s2.len), 0.5*log(5)        , 15 , F3(a2(self.s1,self.s2), b2(self.s1,self.s2),self.s2.len))
-    def test_Imn(self):
-        self.assertAlmostEqual(Imn (self.s1,self.s2)                                  ,-0.213850135243756 , 15 , Imn(self.s1,self.s2))
-        self.assertAlmostEqual(I_mn(self.s1,self.s2)                                  , 0.655696736810798 , 15 , I_mn(self.s1,self.s2))
-    '''
     def test_SmnAny2D(self):
         self.smn.SmnAny2D()
-        self.assertEqual((numpy.around(self.smn.matrix_S,decimals=5)==[[3.84183,  1.05704],   [ 0.12258,  9.42478]]).all(),True)
+        self.assertEqual(((self.smn.matrix_S-[[3.84183,1.05704],[0.12258,9.42478]])<1e-5).all(),True)
     def test_SmnOrtho(self):
         self.smn.SmnOrtho()
-        self.assertEqual((numpy.around(self.smn.matrix_S,decimals=5)==[[3.52549,  0.78204],   [-0.33587,  9.42478]]).all(),True)
+        self.assertEqual(((self.smn.matrix_S-[[3.52549,0.78204],[-0.33587,9.42478]])<1e-5).all(),True)
 
 class Test_mom2d_Conf(unittest.TestCase):
     def setUp(self):
@@ -122,14 +98,15 @@ class Test_RLCG(unittest.TestCase):
         self.conf.add(Section(Coord(0.5,0.5),Coord(0.0,0.0)),4)
         self.rlgc=RLCG(self.conf)
         self.rlgc.calcC()
-    def test_calcC1(self):
-        self.assertEqual(self.rlgc.n_cond,2,self.rlgc.n_cond)
-    def test_calcC2(self):
-        self.assertEqual((self.rlgc.matrix_Q==[[Coef_C,0],[Coef_C,0],[Coef_C,0],[Coef_C,0],[Coef_C,0],[0,Coef_C],[0,Coef_C],[0,Coef_C],[0,Coef_C],[0,0],[0,0],[0,0]]).all(),True)
+#    def test_calcC1(self):
+#        self.assertEqual(self.rlgc.n_cond,2,self.rlgc.n_cond)
+#Test of initial matrix_Q filling
+#    def test_calcC2(self):
+#        self.assertEqual((self.rlgc.matrix_Q==[[Coef_C,0],[Coef_C,0],[Coef_C,0],[Coef_C,0],[Coef_C,0],[0,Coef_C],[0,Coef_C],[0,Coef_C],[0,Coef_C],[0,0],[0,0],[0,0]]).all(),True)
     def test_calcC3(self):
         err=abs(self.rlgc.matrix_S-map(lambda x: map(float,x.split()),open("test_mom2d_test_RLGC_test_Calc3.txt").readlines()))
         self.assertEqual((err<2e-4).all(),True)
     def test_calcC4(self):
-        self.assertEqual((numpy.around(self.rlgc.mC,5)==[[1.53885e-010,-4.32953e-011],[-6.27153e-011,2.06411e-010]]).all(),True)
+        self.assertEqual(((self.rlgc.mC-[[1.53885e-010,-4.32953e-011],[-6.27153e-011,2.06411e-010]])<1e-15).all(),True)
 
 unittest.main()

@@ -2,6 +2,7 @@
 #coding: utf8
 from math import *
 import numpy
+import numpy.linalg as la
 
 eps0=8.854187817e-12
 Coef_C = 4*pi*eps0
@@ -439,16 +440,28 @@ class Smn(object):
 class RLCG(Smn):
     def calcC(self):
         cond_sect=(filter(lambda x: x['mat_type']==False,self.list_bounds))
-        self.n_cond=len(set(map(lambda x: x['mat_count'],cond_sect)))
+        n_cond=len(set(map(lambda x: x['mat_count'],cond_sect)))
         self.SmnAny2D()
-        self.mC = numpy.zeros((self.n_cond,self.n_cond))
-
-        self.matrix_Q = numpy.zeros((self.m_size,self.n_cond))
+        self.mC = numpy.zeros((n_cond,n_cond))
+        self.matrix_Q = numpy.zeros((self.m_size,n_cond))
+        
         beg,n,old_cond=0,0,cond_sect[0]['mat_count']
-        for section in cond_sect:
-            if old_cond!=section['mat_count']: n+=1
-            old_cond=section['mat_count']
-            end=beg+section['n_subint']
+        for bound in cond_sect:
+            if old_cond!=bound['mat_count']: n+=1
+            old_cond=bound['mat_count']
+            end=beg+bound['n_subint']
             self.matrix_Q[beg:end,n]=Coef_C
             beg=end
-            
+
+        self.matrix_Q=la.solve(self.matrix_S,self.matrix_Q)
+
+        beg,m,old_cond=0,0,cond_sect[0]['mat_count']
+        for bound in cond_sect:
+            if old_cond!=bound['mat_count']: m+=1
+            old_cond=bound['mat_count']
+            end=beg+bound['n_subint']
+            # FIXME: Works only for equable segmentation
+            self.matrix_Q[beg:end,0:n_cond]*=bound['mat_param']['erp']*bound['section'].getSubinterval(n=bound['n_subint']).len
+            for n in xrange(n_cond):
+                self.mC[m,n]+=self.matrix_Q[beg:end,n].sum()
+            beg=end
