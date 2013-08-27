@@ -460,7 +460,7 @@ class RLCG(Smn):
             if old_cond!=bound['mat_count']: m+=1
             old_cond=bound['mat_count']
             end=beg+bound['n_subint']
-            # FIXME: Works only for equable segmentation
+            # TODO: It works only for equable segmentation
             self.matrix_Q[beg:end,0:n_cond]*=bound['mat_param']['erp']*bound['section'].getSubinterval(n=bound['n_subint']).len
             for n in xrange(n_cond):
                 self.mC[m,n]+=self.matrix_Q[beg:end,n].sum()

@@ -104,9 +104,10 @@ class Test_RLCG(unittest.TestCase):
 #    def test_calcC2(self):
 #        self.assertEqual((self.rlgc.matrix_Q==[[Coef_C,0],[Coef_C,0],[Coef_C,0],[Coef_C,0],[Coef_C,0],[0,Coef_C],[0,Coef_C],[0,Coef_C],[0,Coef_C],[0,0],[0,0],[0,0]]).all(),True)
     def test_calcC3(self):
-        err=abs(self.rlgc.matrix_S-map(lambda x: map(float,x.split()),open("test_mom2d_test_RLGC_test_Calc3.txt").readlines()))
+        err=abs(self.rlgc.matrix_S-map(lambda x: map(float,x.split()),open("test_mom2d_test_RLGC_test_CalcC3.txt").readlines()))
         self.assertEqual((err<2e-4).all(),True)
     def test_calcC4(self):
         self.assertEqual(((self.rlgc.mC-[[1.53885e-010,-4.32953e-011],[-6.27153e-011,2.06411e-010]])<1e-15).all(),True)
-
+    def test_calcL1(self):
+        self.assertEqual(((self.rlgc.mL-[[1.48736e-007, 4.07621e-008],[ 4.08001e-008,1.65989e-007]])<1e-12).all(),True)
 unittest.main()
