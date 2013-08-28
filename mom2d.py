@@ -6,6 +6,7 @@ import numpy.linalg as la
 
 eps0=8.854187817e-12
 Coef_C = 4*pi*eps0
+_C_ = 299792458.0
 
 class Coord(object):
     def __init__(self,x=0.0,y=0.0):
@@ -142,7 +143,13 @@ class Smn(object):
             raise TypeError
         self.list_bounds=sorted(conf.list_bounds,key=lambda x: [x['mat_type'],x['mat_count'],x['sect_count']])
         self.iflg=conf.iflg
-        self.m_size = reduce(lambda r,x: r+x['n_subint'],self.list_bounds,0)
+        self.n_c,self.n_d=0,0
+        for bound in self.list_bounds:
+            if bound['mat_type']:
+                self.n_d+=bound['n_subint']
+            else:
+                self.n_c+=bound['n_subint']
+        self.m_size=self.n_c+self.n_d
         if not self.iflg :
             self.m_size+=1 # add one row and one column
 
@@ -193,6 +200,8 @@ class Smn(object):
 # WONTFIX: Refactoring
     def SmnAny2D(self):
         self.matrix_S=numpy.zeros((self.m_size,self.m_size))
+        self.diag_S11_C=numpy.zeros((self.n_d))
+        self.diag_S11_L=numpy.zeros((self.n_d))
         bUpdate=False
         m = 0
         for bound_m in self.list_bounds:
@@ -206,14 +215,15 @@ class Smn(object):
             first_subsection=section_m.getSubinterval(0,n_subint_m)
             # xm, ym - centers of subinterval
             xm,ym = first_subsection.center.x, first_subsection.center.y
-            er_plus=0.0
+            er_plus,mu_plus=0.0,0.0
             erp = bound_m['mat_param'].get('erp', 1.0)
             erm = bound_m['mat_param'].get('erm', 1.0)
-            if bDiel : # edit Er for dielectrics
-                #Pascal: p -> u, m -> d
-                if erp==erm:
-                    raise ValueError
-                er_plus=(erp+erm)*pi/(erp-erm)
+            mup = bound_m['mat_param'].get('mup', 1.0)
+            mum = bound_m['mat_param'].get('mum', 1.00001)
+            if erp==erm:
+                raise ValueError
+            er_plus=(erp+erm)*pi/(erp-erm)
+            mu_plus=(1/mup+1/mum)*pi/(1/mup-1/mum)
             # BEGIN cycle through subintervals
             for subint_m in xrange(n_subint_m):
                 # DO JUST THE SAME CALCULATIONS FOR INTEGRAL INTERVALS
@@ -238,41 +248,31 @@ class Smn(object):
                         b1= dx*cosn-(ym+yn)*sinn
                     # BEGIN cycle through integral subintervals
                     for subint_n in xrange(n_subint_n):
-                        # if updating existing smn matrix, we need to update the diagonal only, skip calculations for non-diagonal elements
-                        if not bUpdate or m==n: 
-                            if not bDiel:
-                                # CALCULATION WITH CONDUCTORS
-                                self.matrix_S[m, n] = -self.F1(a2, b2, dn2)
-                                if self.iflg:
-                                    self.matrix_S[m, n] += self.F1(a1, b1, dn2)
-                                    b1 -= dn
-                            else :
-                                # CALCULATION WITH DIELECTRICS
-                                # Imn= sinm*(Ix-Ix1)-cosm*(Iy-Iy1)
-                                f2= self.F2(a2, b2, dn2)
-                                f3= self.F3(a2, b2, dn2)
-                                Imn= 0.0
-                                if sinm!=0.0:
-                                    Imn+=((dx   -b2*cosn)*f2-cosn*f3)*sinm  #  Ix*sinm
-                                if cosm!=0.0:
-                                    Imn-=((ym-yn-b2*sinn)*f2-sinn*f3)*cosm  # -Iy*cosm
-                                if self.iflg:
-                                    f2= self.F2(a1, b1, dn2)
-                                    f3= self.F3(a1, b1, dn2)
-                                    if sinm!=0.0:
-                                        Imn -= ((dx   -b1*cosn)*f2-cosn*f3)*sinm  # -Ix1*sinm
-                                    if cosm!=0.0:
-                                        Imn += ((ym+yn+b1*sinn)*f2-sinn*f3)*cosm  #+Iy1*cosm
-                                    # Iy1 - I1, Iy - I2, 
-                                    b1-= dn
-                                if m==n:
-                                    Imn += er_plus
-                                if Imn == 0.0:
-                                    self.matrix_S[m, n] = -1.0
-                                self.matrix_S[m, n]= Imn
-                        else:
-                            if self.iflg :
+                        if not bDiel:
+                            # CALCULATION WITH CONDUCTORS
+                            self.matrix_S[m, n] = -self.F1(a2, b2, dn2)
+                            if self.iflg:
+                                self.matrix_S[m, n] += self.F1(a1, b1, dn2)
+                                b1 -= dn
+                        else :
+                            # CALCULATION WITH DIELECTRICS
+                            # Imn= sinm*(Ix-Ix1)-cosm*(Iy-Iy1)
+                            f2= self.F2(a2, b2, dn2)
+                            f3= self.F3(a2, b2, dn2)
+                            Imn= ((dx   -b2*cosn)*f2-cosn*f3)*sinm -((ym-yn-b2*sinn)*f2-sinn*f3)*cosm 
+                            if self.iflg:
+                                f2= self.F2(a1, b1, dn2)
+                                f3= self.F3(a1, b1, dn2)
+                                Imn += -((dx   -b1*cosn)*f2-cosn*f3)*sinm + ((ym+yn+b1*sinn)*f2-sinn*f3)*cosm 
                                 b1-= dn
+                            if m==n:
+                                self.diag_S11_C[n-self.n_c]=Imn + er_plus
+                                self.diag_S11_L[n-self.n_c]=Imn + mu_plus
+                            # WONTFIX: This code is meaningless
+                            #if Imn == 0.0:
+                            #    self.matrix_S[m, n] = -1.0
+                            else:
+                                self.matrix_S[m, n]= Imn
                         b2-= dn
                         dx-= dxn
                         n+=1 # increment matrix index
@@ -285,7 +285,7 @@ class Smn(object):
                 ym += dym
              # END cycle through subintervals
          # END cycle through intervals
-        #   if(!self.list_bounds->_bInfiniteGround) : # fill in additional row and column
+        # WONTFIX: fill additional row an column for calculate L
         if not self.iflg : # fill in additional row and column
             sz = m_size-1
             n = 0
@@ -300,6 +300,7 @@ class Smn(object):
                     else: # clear rest of matrix cells
                         self.matrix_S[n,sz],self.matrix_S[sz,n] = 0.0,0.0
                     n+=1
+
 # WONTFIX: Refactoring
     def SmnOrtho(self):
         self.matrix_S=numpy.zeros((self.m_size,self.m_size))
@@ -315,17 +316,14 @@ class Smn(object):
             negcosm = -section_m.cost 
             dxm,dym=section_m.dx/n_subint_m, section_m.dy/n_subint_m
             first_subsection=section_m.getSubinterval(0,n_subint_m)
-            er_plus = 0
             # xm, ym - centers of subinterval
             xm,ym = first_subsection.center.x, first_subsection.center.y
             er_plus=0.0
             erp = bound_m['mat_param'].get('erp', 1.0)
             erm = bound_m['mat_param'].get('erm', 1.0)
-            if bDiel: # edit Er for dielectrics
-                # Pascal: p -> u, m -> d
-                if erp==erm:
-                    raise ValueError
-                er_plus=(erp+erm)*pi/(erp-erm)
+            if erp==erm:
+                raise ValueError
+            er_plus=(erp+erm)*pi/(erp-erm)
             # BEGIN cycle through subintervals
             for subint_m in xrange(n_subint_m):
                 # DO JUST THE SAME CALCULATIONS FOR INTEGRAL INTERVALS
@@ -438,22 +436,30 @@ class Smn(object):
                         self.matrix_S[n,sz],self.matrix_S[sz,n] = 0.0,0.0
                     n+=1
 class RLCG(Smn):
-    def calcC(self):
+    def calcLC(self):
         cond_sect=(filter(lambda x: x['mat_type']==False,self.list_bounds))
         n_cond=len(set(map(lambda x: x['mat_count'],cond_sect)))
         self.SmnAny2D()
         self.mC = numpy.zeros((n_cond,n_cond))
-        self.matrix_Q = numpy.zeros((self.m_size,n_cond))
+        self.mL = numpy.zeros((n_cond,n_cond))
+        matrix_QC = numpy.zeros((self.m_size,n_cond))
+        matrix_QL = numpy.zeros((self.m_size,n_cond))
         
         beg,n,old_cond=0,0,cond_sect[0]['mat_count']
         for bound in cond_sect:
             if old_cond!=bound['mat_count']: n+=1
             old_cond=bound['mat_count']
             end=beg+bound['n_subint']
-            self.matrix_Q[beg:end,n]=Coef_C
+            matrix_QC[beg:end,n]=Coef_C
+            matrix_QL[beg:end,n]=Coef_C
             beg=end
 
-        self.matrix_Q=la.solve(self.matrix_S,self.matrix_Q)
+        for i in xrange(self.n_c,self.m_size):
+            self.matrix_S[i,i]=self.diag_S11_C[i-self.n_c]
+        matrix_QC=la.solve(self.matrix_S,matrix_QC)
+        for i in xrange(self.n_c,self.m_size):
+            self.matrix_S[i,i]=self.diag_S11_L[i-self.n_c]
+        matrix_QL=la.solve(self.matrix_S,matrix_QL)
 
         beg,m,old_cond=0,0,cond_sect[0]['mat_count']
         for bound in cond_sect:
@@ -461,7 +467,14 @@ class RLCG(Smn):
             old_cond=bound['mat_count']
             end=beg+bound['n_subint']
             # TODO: It works only for equable segmentation
-            self.matrix_Q[beg:end,0:n_cond]*=bound['mat_param']['erp']*bound['section'].getSubinterval(n=bound['n_subint']).len
+            subint_len=bound['section'].getSubinterval(n=bound['n_subint']).len
+            matrix_QC[beg:end,0:n_cond]*=bound['mat_param']['erp']*subint_len
+            matrix_QL[beg:end,0:n_cond]*=bound['mat_param']['mup']*subint_len
             for n in xrange(n_cond):
-                self.mC[m,n]+=self.matrix_Q[beg:end,n].sum()
+                self.mC[m,n]+=matrix_QC[beg:end,n].sum()
+                self.mL[m,n]+=matrix_QL[beg:end,n].sum()
             beg=end
+        self.mL=la.inv(self.mL)/(_C_*_C_)
+        
+        for i in xrange(self.n_c,self.m_size):
+            self.matrix_S[i,i]=0.0
