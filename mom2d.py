@@ -108,7 +108,7 @@ class Conf(object):
                     return True
         return False
 
-    # @param n_subint: number of bound_m's subintervals
+    # n_subint: number of bound_m's subintervals
     def add(self,section,n_subint=1):
         if type(section) is Section and type(n_subint) is int:
             if self.intersection(section): raise ValueError
@@ -119,7 +119,7 @@ class Conf(object):
                 self.sect_count+=1
             else: raise ValueError
         else: raise TypeError
-    # @param mat_param: erp - relative permittivity on right side of section, erm - on left side; tdp,tdm - tangent dielectric loss; 
+    # mat_param: erp - relative permittivity on right side of section, erm - on left side; tdp,tdm - tangent dielectric loss; 
     def cond(self,**mat_param):
         self.mat_param=mat_param
         self.mat_type=False
@@ -136,7 +136,7 @@ Port from smn.cpp
 '''
 
 class Smn(object):
-    # list_bounds,iflg,matrix,m_size
+    # list_bounds,iflg,matrix_S,m_size
     def __init__(self,conf):
         if type(conf) is not Conf:
             raise TypeError
@@ -189,7 +189,8 @@ class Smn(object):
         if c!=0.0:
             return 2*(c*(atan(a1/c)-atan(a2/c))-dn)+a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)
         return a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)-2*dn
-    
+
+# WONTFIX: Refactoring
     def SmnAny2D(self):
         self.matrix_S=numpy.zeros((self.m_size,self.m_size))
         bUpdate=False
@@ -299,7 +300,7 @@ class Smn(object):
                     else: # clear rest of matrix cells
                         self.matrix_S[n,sz],self.matrix_S[sz,n] = 0.0,0.0
                     n+=1
-    
+# WONTFIX: Refactoring
     def SmnOrtho(self):
         self.matrix_S=numpy.zeros((self.m_size,self.m_size))
         bUpdate=False
@@ -351,7 +352,6 @@ class Smn(object):
                         a2= a1-dn
                         c1= ym- yn
                         c2= ym+yn
-                        # WONTFIX: Refactoring
                         da= dn * section_n.cost  # +-dn
                     else :  # ortho X: I - I1 later
                         a1= dn2-ym+yn  # just for I, later more

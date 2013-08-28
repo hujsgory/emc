@@ -52,10 +52,10 @@ class Test_Smn(unittest.TestCase):
         self.smn=Smn(self.conf)
     def test_SmnAny2D(self):
         self.smn.SmnAny2D()
-        self.assertEqual(((self.smn.matrix_S-[[3.84183,1.05704],[0.12258,9.42478]])<1e-5).all(),True)
+        self.assertTrue(((self.smn.matrix_S-[[3.84183,1.05704],[0.12258,9.42478]])<1e-5).all())
     def test_SmnOrtho(self):
         self.smn.SmnOrtho()
-        self.assertEqual(((self.smn.matrix_S-[[3.52549,0.78204],[-0.33587,9.42478]])<1e-5).all(),True)
+        self.assertTrue(((self.smn.matrix_S-[[3.52549,0.78204],[-0.33587,9.42478]])<1e-5).all())
 
 class Test_mom2d_Conf(unittest.TestCase):
     def setUp(self):
@@ -88,26 +88,27 @@ class Test_mom2d_Conf(unittest.TestCase):
 class Test_RLCG(unittest.TestCase):
     def setUp(self):
         self.conf=Conf()
-        self.conf.diel(erp=2.0)
+        self.conf.diel(erp=2.0,mup=5.0)
         self.conf.add(Section(Coord(0.0,0.0),Coord(0.0,1.0)),1)
         self.conf.add(Section(Coord(0.0,1.0),Coord(1.0,1.0)),2)
-        self.conf.cond(erp=2.0)
+        self.conf.cond(erp=2.0,mup=5.0)
         self.conf.add(Section(Coord(1.0,1.0),Coord(1.0,0.0)),2)
         self.conf.add(Section(Coord(1.0,0.0),Coord(0.5,0.5)),3)
-        self.conf.cond(erp=3.0)
+        self.conf.cond(erp=3.0,mup=5.0)
         self.conf.add(Section(Coord(0.5,0.5),Coord(0.0,0.0)),4)
         self.rlgc=RLCG(self.conf)
         self.rlgc.calcC()
-#    def test_calcC1(self):
-#        self.assertEqual(self.rlgc.n_cond,2,self.rlgc.n_cond)
-#Test of initial matrix_Q filling
-#    def test_calcC2(self):
-#        self.assertEqual((self.rlgc.matrix_Q==[[Coef_C,0],[Coef_C,0],[Coef_C,0],[Coef_C,0],[Coef_C,0],[0,Coef_C],[0,Coef_C],[0,Coef_C],[0,Coef_C],[0,0],[0,0],[0,0]]).all(),True)
+    @unittest.skip('Variable n_cond is local in calc_C')
+    def test_calcC1(self):
+        self.assertEqual(self.rlgc.n_cond,2,self.rlgc.n_cond)
+    @unittest.skip('Test for initial matrix_Q filling')
+    def test_calcC2(self):
+        self.assertTrue((self.rlgc.matrix_Q==[[Coef_C,0],[Coef_C,0],[Coef_C,0],[Coef_C,0],[Coef_C,0],[0,Coef_C],[0,Coef_C],[0,Coef_C],[0,Coef_C],[0,0],[0,0],[0,0]]).all())
     def test_calcC3(self):
-        err=abs(self.rlgc.matrix_S-map(lambda x: map(float,x.split()),open("test_mom2d_test_RLGC_test_CalcC3.txt").readlines()))
-        self.assertEqual((err<2e-4).all(),True)
+        err=abs(self.rlgc.matrix_S-map(lambda x: map(float,x.split()),open('test_mom2d_test_RLGC_test_CalcC3.txt').readlines()))
+        self.assertTrue((err<2e-4).all())
     def test_calcC4(self):
-        self.assertEqual(((self.rlgc.mC-[[1.53885e-010,-4.32953e-011],[-6.27153e-011,2.06411e-010]])<1e-15).all(),True)
+        self.assertTrue(((self.rlgc.mC-[[1.53885e-010,-4.32953e-011],[-6.27153e-011,2.06411e-010]])<1e-15).all())
     def test_calcL1(self):
-        self.assertEqual(((self.rlgc.mL-[[1.48736e-007, 4.07621e-008],[ 4.08001e-008,1.65989e-007]])<1e-12).all(),True)
+        self.assertTrue(((self.rlgc.mL-[[6.35829e-007, 1.22435e-007],[ 1.28342e-007,7.29938e-007]])<1e-12).all())
 unittest.main()
