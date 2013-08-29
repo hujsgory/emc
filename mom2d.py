@@ -197,7 +197,7 @@ class Smn(object):
             return 2*(c*(atan(a1/c)-atan(a2/c))-dn)+a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)
         return a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)-2*dn
 
-# WONTFIX: Refactoring
+    # TODO: Refactoring
     def SmnAny2D(self):
         self.matrix_S=numpy.zeros((self.m_size,self.m_size))
         self.diag_S11_C=numpy.zeros((self.n_d))
@@ -301,7 +301,8 @@ class Smn(object):
                         self.matrix_S[n,sz],self.matrix_S[sz,n] = 0.0,0.0
                     n+=1
 
-# WONTFIX: Refactoring
+    # TODO: Refactoring
+    # WONTFIX: diag_S11_L and diag_S11_C
     def SmnOrtho(self):
         self.matrix_S=numpy.zeros((self.m_size,self.m_size))
         bUpdate=False
@@ -440,41 +441,45 @@ class RLCG(Smn):
         cond_sect=(filter(lambda x: x['mat_type']==False,self.list_bounds))
         n_cond=len(set(map(lambda x: x['mat_count'],cond_sect)))
         self.SmnAny2D()
-        self.mC = numpy.zeros((n_cond,n_cond))
-        self.mL = numpy.zeros((n_cond,n_cond))
-        matrix_QC = numpy.zeros((self.m_size,n_cond))
-        matrix_QL = numpy.zeros((self.m_size,n_cond))
-        
+
+        # Excitation vector filling
+        exc_v = numpy.zeros((self.m_size,n_cond))
         beg,n,old_cond=0,0,cond_sect[0]['mat_count']
         for bound in cond_sect:
             if old_cond!=bound['mat_count']: n+=1
             old_cond=bound['mat_count']
             end=beg+bound['n_subint']
-            matrix_QC[beg:end,n]=Coef_C
-            matrix_QL[beg:end,n]=Coef_C
+            exc_v[beg:end,n]=Coef_C
             beg=end
 
+        # Matrix Q calculating
         for i in xrange(self.n_c,self.m_size):
             self.matrix_S[i,i]=self.diag_S11_C[i-self.n_c]
-        matrix_QC=la.solve(self.matrix_S,matrix_QC)
+        self.matrix_QC=la.solve(self.matrix_S,exc_v)
+
         for i in xrange(self.n_c,self.m_size):
             self.matrix_S[i,i]=self.diag_S11_L[i-self.n_c]
-        matrix_QL=la.solve(self.matrix_S,matrix_QL)
+        self.matrix_QL=la.solve(self.matrix_S,exc_v)
 
+        # Matrix C and L calculating
+        self.mC = numpy.zeros((n_cond,n_cond))
+        self.mL = numpy.zeros((n_cond,n_cond))
         beg,m,old_cond=0,0,cond_sect[0]['mat_count']
         for bound in cond_sect:
             if old_cond!=bound['mat_count']: m+=1
             old_cond=bound['mat_count']
             end=beg+bound['n_subint']
             # TODO: It works only for equable segmentation
+            # For smart segmentation is necessary to take length of the every subintervals
             subint_len=bound['section'].getSubinterval(n=bound['n_subint']).len
-            matrix_QC[beg:end,0:n_cond]*=bound['mat_param']['erp']*subint_len
-            matrix_QL[beg:end,0:n_cond]*=bound['mat_param']['mup']*subint_len
+            self.matrix_QC[beg:end,0:n_cond]*=subint_len*bound['mat_param']['erp']
+            self.matrix_QL[beg:end,0:n_cond]*=subint_len/bound['mat_param']['mup']
             for n in xrange(n_cond):
-                self.mC[m,n]+=matrix_QC[beg:end,n].sum()
-                self.mL[m,n]+=matrix_QL[beg:end,n].sum()
+                self.mC[m,n]+=self.matrix_QC[beg:end,n].sum()
+                self.mL[m,n]+=self.matrix_QL[beg:end,n].sum()
             beg=end
         self.mL=la.inv(self.mL)/(_C_*_C_)
-        
+
         for i in xrange(self.n_c,self.m_size):
             self.matrix_S[i,i]=0.0
+

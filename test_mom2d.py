@@ -99,24 +99,32 @@ class Test_RLCG(unittest.TestCase):
         self.conf.add(Section(Coord(0.5,0.5),Coord(0.0,0.0)),4)
         self.rlcg=RLCG(self.conf)
         self.rlcg.calcLC()
+    def read_matrix(self,fname):
+        return map(lambda x: map(float,x.split()),open(fname).readlines())
+    def read_vector(self,fname):
+        return map(float,open(fname).readline().split())
     @unittest.skip('Variable n_cond is local in calc_C')
     def test_calcC1(self):
         self.assertEqual(self.rlgc.n_cond,2,self.rlgc.n_cond)
-    @unittest.skip('Test for initial matrix_Q filling')
     def test_calcC2(self):
-        self.assertTrue((self.rlcg.matrix_Q==[[Coef_C,0],[Coef_C,0],[Coef_C,0],[Coef_C,0],[Coef_C,0],[0,Coef_C],[0,Coef_C],[0,Coef_C],[0,Coef_C],[0,0],[0,0],[0,0]]).all())
+        err=abs(numpy.transpose(self.rlcg.matrix_QC[0:9,0:2])-self.read_matrix('test_mom2d_test_RLCG_test_CalcC2.txt'))
+        self.assertTrue((err<2e-15).all())
     def test_calcC3(self):
-        err=abs(self.rlcg.matrix_S-map(lambda x: map(float,x.split()),open('test_mom2d_test_RLCG_test_CalcC3.txt').readlines()))
+        err=abs(self.rlcg.matrix_S-self.read_matrix('test_mom2d_test_RLCG_test_CalcC3.txt'))
         self.assertTrue((err<2e-4).all())
     def test_calcC4(self):
-        err=abs(self.rlcg.diag_S11_C-map(float,open('test_mom2d_test_RLCG_test_CalcC4.txt').readline().split()))
+        err=abs(self.rlcg.diag_S11_C-self.read_vector('test_mom2d_test_RLCG_test_CalcC4.txt'))
         self.assertTrue((err<2e-4).all())
     def test_calcC5(self):
-        self.assertTrue((abs(self.rlcg.mC-[[1.53885e-010,-4.32953e-011],[-6.27153e-011,2.06411e-010]])<1e-15).all())
+        err=abs(self.rlcg.mC-self.read_matrix('test_mom2d_test_RLCG_test_CalcC5.txt'))
+        self.assertTrue((err<1e-15).all())
     def test_calcL1(self):
-        print self.rlcg.mL
-        self.assertTrue((abs(self.rlcg.mL-[[6.35829e-007, 1.22435e-007],[ 1.28342e-007,7.29938e-007]])<1e-12).all())
+        err=abs(self.rlcg.mL-self.read_matrix('test_mom2d_test_RLCG_test_CalcL1.txt'))
+        self.assertTrue((err<1e-12).all())
     def test_calcL2(self):
-        err=abs(self.rlcg.diag_S11_L-map(float,open('test_mom2d_test_RLCG_test_CalcL2.txt').readline().split()))
+        err=abs(self.rlcg.diag_S11_L-self.read_vector('test_mom2d_test_RLCG_test_CalcL2.txt'))
         self.assertTrue((err<2e-4).all())
+    def test_calcL3(self):
+        err=abs(numpy.transpose(self.rlcg.matrix_QL[0:9,0:2])-self.read_matrix('test_mom2d_test_RLCG_test_CalcL3.txt'))
+        self.assertTrue((err<2e-16).all())
 unittest.main()
