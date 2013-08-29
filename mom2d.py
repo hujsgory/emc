@@ -268,7 +268,7 @@ class Smn(object):
                             if m==n:
                                 self.diag_S11_C[n-self.n_c]=Imn + er_plus
                                 self.diag_S11_L[n-self.n_c]=Imn + mu_plus
-                            # WONTFIX: This code is meaningless
+                            # HACK: This code is meaningless
                             #if Imn == 0.0:
                             #    self.matrix_S[m, n] = -1.0
                             else:
@@ -285,7 +285,7 @@ class Smn(object):
                 ym += dym
              # END cycle through subintervals
          # END cycle through intervals
-        # WONTFIX: fill additional row an column for calculate L
+        # FIXME: fill additional row an column for calculate L
         if not self.iflg : # fill in additional row and column
             sz = m_size-1
             n = 0
@@ -302,7 +302,7 @@ class Smn(object):
                     n+=1
 
     # TODO: Refactoring
-    # WONTFIX: diag_S11_L and diag_S11_C
+    # FIXME: diag_S11_L and diag_S11_C
     def SmnOrtho(self):
         self.matrix_S=numpy.zeros((self.m_size,self.m_size))
         bUpdate=False
@@ -469,7 +469,7 @@ class RLCG(Smn):
             if old_cond!=bound['mat_count']: m+=1
             old_cond=bound['mat_count']
             end=beg+bound['n_subint']
-            # TODO: It works only for equable segmentation
+            # FIXME: It works only for equable segmentation
             # For smart segmentation is necessary to take length of the every subintervals
             subint_len=bound['section'].getSubinterval(n=bound['n_subint']).len
             self.matrix_QC[beg:end,0:n_cond]*=subint_len*bound['mat_param']['erp']
