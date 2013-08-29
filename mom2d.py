@@ -131,7 +131,15 @@ class Conf(object):
         self.mat_type=True
         self.mat_count+=1
         self.sect_count=0
-        
+
+
+class Board(Conf):
+    def layer(self):
+        pass
+    def conductor(self):
+        pass
+    def cover(self):
+        pass        
 '''
 Port from smn.cpp
 '''
