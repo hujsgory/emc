@@ -127,4 +127,14 @@ class Test_RLCG(unittest.TestCase):
     def test_calcL3(self):
         err=abs(numpy.transpose(self.rlcg.matrix_QL[0:9,0:2])-read_matrix('_mom2d_RLCG_CalcL3.txt'))
         self.assertTrue((err<2e-16).all())
+
+class Test_Board(unittest.TestCase):
+    def setUp(self):
+        self.board=Board()
+        self.board.layers=[{'height':1e-3,'er':2.0,'td':0.0,'cover':False,'cond':[{'space':1e-3,'width':0.25e-3,'thickness':100e-6,'depth':50e-6}]}]
+    def test_layer1(self):
+        self.assertRaises(ValueError,self.board.layer,height=50e-6,er=3.0)
+    def test_layer2(self):
+        self.assertRaises(ValueError,self.board.layer,height=100e-6,er=2.0)
+    
 unittest.main()

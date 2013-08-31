@@ -61,12 +61,12 @@ class Section(object):
 
 class Conf(object):
     def __init__(self):
-        self.list_bounds=[]
+        self.list_bounds=list()
         self.iflg=True
         self.mat_type=False     #mat_type: False - Conductor-Dielectric bound_m, True - Dielectric-Dielectric bound_m
         self.mat_count=0
         self.sect_count=0
-        self.mat_param={}
+        self.mat_param=dict()
     def __iter__(self):
         return self.list_bounds.__iter__()
     def intersection(self,sect2):
@@ -133,13 +133,30 @@ class Conf(object):
         self.sect_count=0
 
 
-class Board(Conf):
-    def layer(self):
+class Board():
+    def __init__(self):
+        self.layers=list()
+        self.environment=1.0
+    def layer(self,height,er,td=0.0):
+        if height<=0.0 or er<1.0 or td <0.0:
+            raise ValueError
+        if len(self.layers)>0:
+            if height<=max(map(lambda x: x['thickness']-x['depth'], self.layers[-1]['cond'])):
+                raise ValueError('Thickness of conductor of previous layer is greater than height')
+            if self.layers[-1]['cover']:
+                raise ValueError('Layer can\'t be applied to cover')
+            if er==self.layers[-1]['er']:
+                raise ValueError('Dielectric constant of previous layer is equal to current value')
+        self.layers.append({'height':height,'er':er,'td':td,'cover':False,'cond':list()})
+    def conductor(self,space,width,thickness,depth):
+        #self.layers[-1]['cond'].append({})
         pass
-    def conductor(self):
+    def cover(self,height,er,td=0.0):
         pass
-    def cover(self):
-        pass        
+    def board2conf():
+        pass
+        
+        
 '''
 Port from smn.cpp
 '''
