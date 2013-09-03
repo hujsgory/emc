@@ -90,7 +90,7 @@ class Test_mom2d_Conf(unittest.TestCase):
         self.conf.add(Section(self.c6,self.c5))
         self.assertRaises(ValueError,self.conf.add,Section(self.c1,self.c7))
 
-class Test_RLCG(unittest.TestCase):
+class Test_LRCG(unittest.TestCase):
     def setUp(self):
         self.conf=Conf()
         self.conf.diel(erp=2.0,mup=5.0)
@@ -101,31 +101,31 @@ class Test_RLCG(unittest.TestCase):
         self.conf.add(Section(Coord(1.0,0.0),Coord(0.5,0.5)),3)
         self.conf.cond(erp=3.0,mup=5.0)
         self.conf.add(Section(Coord(0.5,0.5),Coord(0.0,0.0)),4)
-        self.rlcg=RLCG(self.conf)
-        self.rlcg.calcLC()
+        self.lrcg=LRCG(self.conf)
+        self.lrcg.calcLC()
     @unittest.skip('Variable n_cond is local in calc_C')
     def test_calcC1(self):
-        self.assertEqual(self.rlgc.n_cond,2,self.rlgc.n_cond)
+        self.assertEqual(self.lrcg.n_cond,2,self.lrcg.n_cond)
     def test_calcC2(self):
-        err=abs(numpy.transpose(self.rlcg.matrix_QC[0:9,0:2])-read_matrix('_mom2d_RLCG_CalcC2.txt'))
+        err=abs(numpy.transpose(self.lrcg.matrix_QC[0:9,0:2])-read_matrix('_mom2d_RLCG_CalcC2.txt'))
         self.assertTrue((err<2e-15).all())
     def test_calcC3(self):
-        err=abs(self.rlcg.matrix_S-read_matrix('_mom2d_RLCG_CalcC3.txt'))
+        err=abs(self.lrcg.matrix_S-read_matrix('_mom2d_RLCG_CalcC3.txt'))
         self.assertTrue((err<2e-4).all())
     def test_calcC4(self):
-        err=abs(self.rlcg.diag_S11_C-read_vector('_mom2d_RLCG_CalcC4.txt'))
+        err=abs(self.lrcg.diag_S11_C-read_vector('_mom2d_RLCG_CalcC4.txt'))
         self.assertTrue((err<2e-4).all())
     def test_calcC5(self):
-        err=abs(self.rlcg.mC-read_matrix('_mom2d_RLCG_CalcC5.txt'))
+        err=abs(self.lrcg.mC-read_matrix('_mom2d_RLCG_CalcC5.txt'))
         self.assertTrue((err<1e-15).all())
     def test_calcL1(self):
-        err=abs(self.rlcg.mL-read_matrix('_mom2d_RLCG_CalcL1.txt'))
+        err=abs(self.lrcg.mL-read_matrix('_mom2d_RLCG_CalcL1.txt'))
         self.assertTrue((err<1e-12).all())
     def test_calcL2(self):
-        err=abs(self.rlcg.diag_S11_L-read_vector('_mom2d_RLCG_CalcL2.txt'))
+        err=abs(self.lrcg.diag_S11_L-read_vector('_mom2d_RLCG_CalcL2.txt'))
         self.assertTrue((err<2e-4).all())
     def test_calcL3(self):
-        err=abs(numpy.transpose(self.rlcg.matrix_QL[0:9,0:2])-read_matrix('_mom2d_RLCG_CalcL3.txt'))
+        err=abs(numpy.transpose(self.lrcg.matrix_QL[0:9,0:2])-read_matrix('_mom2d_RLCG_CalcL3.txt'))
         self.assertTrue((err<2e-16).all())
 
 class Test_Board(unittest.TestCase):
@@ -134,7 +134,11 @@ class Test_Board(unittest.TestCase):
         self.board.layers=[{'height':1e-3,'er':2.0,'td':0.0,'cover':False,'cond':[{'space':1e-3,'width':0.25e-3,'thickness':100e-6,'depth':50e-6}]}]
     def test_layer1(self):
         self.assertRaises(ValueError,self.board.layer,height=50e-6,er=3.0)
-    def test_layer2(self):
-        self.assertRaises(ValueError,self.board.layer,height=100e-6,er=2.0)
+    def test_conductor1(self):
+        self.board.conductor(3e-3,1e-3,400e-6)
+        self.assertEqual(self.board.layers[-1]['cond'][-1]['space'],3e-3)
+        self.assertEqual(self.board.layers[-1]['cond'][-1]['width'],1e-3)
+        self.assertEqual(self.board.layers[-1]['cond'][-1]['thickness'],400e-6)
+        self.assertEqual(self.board.layers[-1]['cond'][-1]['depth'],0.0)
     
 unittest.main()

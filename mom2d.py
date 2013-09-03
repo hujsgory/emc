@@ -6,7 +6,7 @@ import numpy.linalg as la
 
 eps0=8.854187817e-12
 Coef_C = 4*pi*eps0
-_C_ = 299792458.0
+V0 = 299792458.0
 
 class Coord(object):
     def __init__(self,x=0.0,y=0.0):
@@ -145,14 +145,22 @@ class Board():
                 raise ValueError('Thickness of conductor of previous layer is greater than height')
             if self.layers[-1]['cover']:
                 raise ValueError('Layer can\'t be applied to cover')
-            if er==self.layers[-1]['er']:
-                raise ValueError('Dielectric constant of previous layer is equal to current value')
         self.layers.append({'height':height,'er':er,'td':td,'cover':False,'cond':list()})
-    def conductor(self,space,width,thickness,depth):
-        #self.layers[-1]['cond'].append({})
-        pass
+    def conductor(self,space,width,thickness,depth=0.0,to_center=False):
+        if len(self.layers)==0:
+            raise ValueError('It is necessary to create at least one layer')
+        last_layer_cond=self.layers[-1]['cond']
+        if to_center:
+            space-=width/2.0
+            if len(last_layer_cond)>0:
+                space-=last_layer_cond[-1]['width']/2.0
+        if space<=0. or width<=0. or thickness<=0. or depth<0.:
+            raise ValueError('All parameters must be positive')
+        if depth>self.layers[-1]['height']:
+            raise ValueError('Depth is greater than layer height')
+        last_layer_cond.append({'space':space,'width':width,'thickness':thickness,'depth':depth})
     def cover(self,height,er,td=0.0):
-        pass
+        self.layers.append({'height':height,'er':er,'td':td,'cover':False,'cond':list()})
     def board2conf():
         pass
         
@@ -246,7 +254,7 @@ class Smn(object):
             mup = bound_m['mat_param'].get('mup', 1.0)
             mum = bound_m['mat_param'].get('mum', 1.00001)
             if erp==erm:
-                raise ValueError
+                raise ValueError('Dielectric constant of right side is equal to value of left side')
             er_plus=(erp+erm)*pi/(erp-erm)
             mu_plus=(1/mup+1/mum)*pi/(1/mup-1/mum)
             # BEGIN cycle through subintervals
@@ -461,7 +469,7 @@ class Smn(object):
                     else: # clear rest of matrix cells
                         self.matrix_S[n,sz],self.matrix_S[sz,n] = 0.0,0.0
                     n+=1
-class RLCG(Smn):
+class LRCG(Smn):
     def calcLC(self):
         cond_sect=(filter(lambda x: x['mat_type']==False,self.list_bounds))
         n_cond=len(set(map(lambda x: x['mat_count'],cond_sect)))
@@ -495,7 +503,7 @@ class RLCG(Smn):
             old_cond=bound['mat_count']
             end=beg+bound['n_subint']
             # FIXME: It works only for equable segmentation
-            # For smart segmentation is necessary to take length of the every subintervals
+            # For smart segmentation is necessary to take length of the every subinterval
             subint_len=bound['section'].getSubinterval(n=bound['n_subint']).len
             self.matrix_QC[beg:end,0:n_cond]*=subint_len*bound['mat_param']['erp']
             self.matrix_QL[beg:end,0:n_cond]*=subint_len/bound['mat_param']['mup']
@@ -503,7 +511,7 @@ class RLCG(Smn):
                 self.mC[m,n]+=self.matrix_QC[beg:end,n].sum()
                 self.mL[m,n]+=self.matrix_QL[beg:end,n].sum()
             beg=end
-        self.mL=la.inv(self.mL)/(_C_*_C_)
+        self.mL=la.inv(self.mL)/(V0*V0)
 
         for i in xrange(self.n_c,self.m_size):
             self.matrix_S[i,i]=0.0
