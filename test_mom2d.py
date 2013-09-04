@@ -150,5 +150,7 @@ class Test_Board(unittest.TestCase):
         self.assertRaises(ValueError,self.board.conductor,space=3e-3,width=1e-3,thickness=0.0,depth=0.0)
     def test_conductor6(self):
         self.assertRaises(ValueError,self.board.conductor,space=3e-3,width=1e-3,thickness=400e-6,depth=-0.1)
-
+    def test_board2conf1(self):
+        self.board.board2conf()
+        self.assertAlmostEqual(self.board.max_x,2.25e-3,15)
 unittest.main()

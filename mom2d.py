@@ -161,9 +161,12 @@ class Board():
         last_layer_cond.append({'space':space,'width':width,'thickness':thickness,'depth':depth})
     def cover(self,height,er,td=0.0):
         self.layers.append({'height':height,'er':er,'td':td,'cover':False,'cond':list()})
-    def board2conf():
-        pass
-        
+    def board2conf(self):
+        self.conf=Conf()
+        y_layer=0.0
+        # Calculation of structure's right coordinate x
+        self.max_x=max(map(lambda x: reduce(lambda r,y: r+y['space']+y['width'],x['cond'],x['cond'][0]['space']),self.layers))
+
         
 '''
 Port from smn.cpp
