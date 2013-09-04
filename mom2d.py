@@ -156,7 +156,7 @@ class Board():
                 space-=last_layer_cond[-1]['width']/2.0
         if space<=0. or width<=0. or thickness<=0. or depth<0.:
             raise ValueError('All parameters must be positive')
-        if depth>self.layers[-1]['height']:
+        if depth>=self.layers[-1]['height']:
             raise ValueError('Depth is greater than layer height')
         last_layer_cond.append({'space':space,'width':width,'thickness':thickness,'depth':depth})
     def cover(self,height,er,td=0.0):

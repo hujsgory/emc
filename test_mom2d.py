@@ -140,5 +140,15 @@ class Test_Board(unittest.TestCase):
         self.assertEqual(self.board.layers[-1]['cond'][-1]['width'],1e-3)
         self.assertEqual(self.board.layers[-1]['cond'][-1]['thickness'],400e-6)
         self.assertEqual(self.board.layers[-1]['cond'][-1]['depth'],0.0)
-    
+    def test_conductor2(self):
+        self.assertRaises(ValueError,self.board.conductor,space=3e-3,width=1e-3,thickness=400e-6,depth=1e-3)
+    def test_conductor3(self):
+        self.assertRaises(ValueError,self.board.conductor,space=0.0,width=1e-3,thickness=400e-6,depth=0.0)
+    def test_conductor4(self):
+        self.assertRaises(ValueError,self.board.conductor,space=3e-3,width=0.0,thickness=400e-6,depth=0.0)
+    def test_conductor5(self):
+        self.assertRaises(ValueError,self.board.conductor,space=3e-3,width=1e-3,thickness=0.0,depth=0.0)
+    def test_conductor6(self):
+        self.assertRaises(ValueError,self.board.conductor,space=3e-3,width=1e-3,thickness=400e-6,depth=-0.1)
+
 unittest.main()
