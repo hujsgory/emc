@@ -136,7 +136,7 @@ class Conf(object):
 class Board():
     def __init__(self):
         self.layers=list()
-        self.environment=1.0
+        self.medium={'er':1.0,'td':0.0}
     def layer(self,height,er,td=0.0):
         if height<=0.0 or er<1.0 or td <0.0:
             raise ValueError
@@ -163,10 +163,57 @@ class Board():
         self.layers.append({'height':height,'er':er,'td':td,'cover':False,'cond':list()})
     def board2conf(self):
         self.conf=Conf()
-        y_layer=0.0
         # Calculation of structure's right coordinate x
-        self.max_x=max(map(lambda x: reduce(lambda r,y: r+y['space']+y['width'],x['cond'],x['cond'][0]['space']),self.layers))
+        # FIXME: x['cond'][0]['space'] may be raised exception
+        self.max_x=max(map(lambda layer:
+                           reduce(lambda r,cond:
+                                  r+cond['space']+cond['width'],
+                                  layer['cond'],
+                                  layer['cond'][0]['space']
+                                  ),
+                           filter(lambda layer:
+                                  len(layer['cond'])>0,
+                                  self.layers
+                                  )
+                           )
+                       )
+        # Layers drawing
+        y_layer=0.0
+        layers_count=len(self.layers)
+        for i in xrange(layers_count):
+            layer=self.layers
+            y_layer+=layer[i]['height']
+            er_top=self.medium('er')
+            eri_top=self.medium('td')
+            if(layers_count+1!=len(layer):
+                er_top =   layer[i+1]['er']
+                eri_top = -layer[i+1]['td'] * layer[i+1]['er']
+            er_bottom =    layer[i  ]['er']
+            eri_bottom =  -layer[i  ]['td'] * layer[i]['er']
+            if not layer[i]['cover']:
+                x_cond_left  = 0.0
+                x_cond_right = 0.0
+                # Conductor-dielectric bounds drawing
+                for cond in layer[i]['cond']:
+                    y_cond_bottom = y_layer       - cond['depth']
+                    y_cond_top    = y_cond_bottom + cond['thickness']
+                    x_cond_left  +=                 cond['space']
+                    x_cond_right  = x_cond_left   + cond['width']
+                    if y_cond_bottom<y_layer:
+                        beg = y_cond_top < y_layer ?
+                                                     Coord(x_cond_left,  y_cond_top):
+                                                     Coord(x_cond_left,  y_layer);
+                        _irSection._section._end   = Coord(x_cond_left,  y_cond_bottom);
+                        _irSection.AddLine();
+                        _irSection._section._begin = Coord(x_cond_right, y_cond_bottom);
+                        _irSection._section._end   = y_cond_top < y_layer ?
+                                                     Coord(x_cond_right, y_cond_top):
+                                                     Coord(x_cond_right, y_layer);
+                        _irSection.AddLine();
 
+            # Cover drawing
+            else:
+                pass 
         
 '''
 Port from smn.cpp
@@ -472,7 +519,7 @@ class Smn(object):
                     else: # clear rest of matrix cells
                         self.matrix_S[n,sz],self.matrix_S[sz,n] = 0.0,0.0
                     n+=1
-class LRCG(Smn):
+class RLGC(Smn):
     def calcLC(self):
         cond_sect=(filter(lambda x: x['mat_type']==False,self.list_bounds))
         n_cond=len(set(map(lambda x: x['mat_count'],cond_sect)))

@@ -90,7 +90,7 @@ class Test_mom2d_Conf(unittest.TestCase):
         self.conf.add(Section(self.c6,self.c5))
         self.assertRaises(ValueError,self.conf.add,Section(self.c1,self.c7))
 
-class Test_LRCG(unittest.TestCase):
+class Test_RLGC(unittest.TestCase):
     def setUp(self):
         self.conf=Conf()
         self.conf.diel(erp=2.0,mup=5.0)
@@ -101,31 +101,31 @@ class Test_LRCG(unittest.TestCase):
         self.conf.add(Section(Coord(1.0,0.0),Coord(0.5,0.5)),3)
         self.conf.cond(erp=3.0,mup=5.0)
         self.conf.add(Section(Coord(0.5,0.5),Coord(0.0,0.0)),4)
-        self.lrcg=LRCG(self.conf)
-        self.lrcg.calcLC()
+        self.rlgc=RLGC(self.conf)
+        self.rlgc.calcLC()
     @unittest.skip('Variable n_cond is local in calc_C')
     def test_calcC1(self):
-        self.assertEqual(self.lrcg.n_cond,2,self.lrcg.n_cond)
+        self.assertEqual(self.rlgc.n_cond,2,self.rlgc.n_cond)
     def test_calcC2(self):
-        err=abs(numpy.transpose(self.lrcg.matrix_QC[0:9,0:2])-read_matrix('_mom2d_RLCG_CalcC2.txt'))
+        err=abs(numpy.transpose(self.rlgc.matrix_QC[0:9,0:2])-read_matrix('_mom2d_RLCG_CalcC2.txt'))
         self.assertTrue((err<2e-15).all())
     def test_calcC3(self):
-        err=abs(self.lrcg.matrix_S-read_matrix('_mom2d_RLCG_CalcC3.txt'))
+        err=abs(self.rlgc.matrix_S-read_matrix('_mom2d_RLCG_CalcC3.txt'))
         self.assertTrue((err<2e-4).all())
     def test_calcC4(self):
-        err=abs(self.lrcg.diag_S11_C-read_vector('_mom2d_RLCG_CalcC4.txt'))
+        err=abs(self.rlgc.diag_S11_C-read_vector('_mom2d_RLCG_CalcC4.txt'))
         self.assertTrue((err<2e-4).all())
     def test_calcC5(self):
-        err=abs(self.lrcg.mC-read_matrix('_mom2d_RLCG_CalcC5.txt'))
+        err=abs(self.rlgc.mC-read_matrix('_mom2d_RLCG_CalcC5.txt'))
         self.assertTrue((err<1e-15).all())
     def test_calcL1(self):
-        err=abs(self.lrcg.mL-read_matrix('_mom2d_RLCG_CalcL1.txt'))
+        err=abs(self.rlgc.mL-read_matrix('_mom2d_RLCG_CalcL1.txt'))
         self.assertTrue((err<1e-12).all())
     def test_calcL2(self):
-        err=abs(self.lrcg.diag_S11_L-read_vector('_mom2d_RLCG_CalcL2.txt'))
+        err=abs(self.rlgc.diag_S11_L-read_vector('_mom2d_RLCG_CalcL2.txt'))
         self.assertTrue((err<2e-4).all())
     def test_calcL3(self):
-        err=abs(numpy.transpose(self.lrcg.matrix_QL[0:9,0:2])-read_matrix('_mom2d_RLCG_CalcL3.txt'))
+        err=abs(numpy.transpose(self.rlgc.matrix_QL[0:9,0:2])-read_matrix('_mom2d_RLCG_CalcL3.txt'))
         self.assertTrue((err<2e-16).all())
 
 class Test_Board(unittest.TestCase):
