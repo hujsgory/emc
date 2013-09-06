@@ -115,10 +115,10 @@ class Conf(object):
             if self.intersection(section): raise ValueError
             erp = self.mat_param.get('erp', 1.0)
             erm = self.mat_param.get('erm', 1.0)
-            if erp!=erm:
-                self.list_bounds.append({'section':section,'mat_type':self.mat_type,'n_subint':n_subint,'mat_param':self.mat_param, 'mat_count': self.mat_count,'sect_count': self.sect_count})
-                self.sect_count+=1
-            else: raise ValueError
+            if self.mat_type and erp==erm:
+                raise ValueError
+            self.list_bounds.append({'section':section,'mat_type':self.mat_type,'n_subint':n_subint,'mat_param':self.mat_param, 'mat_count': self.mat_count,'sect_count': self.sect_count})
+            self.sect_count+=1
         else: raise TypeError
     # mat_param: erp - relative permittivity on right side of section, erm - on left side; tdp,tdm - tangent dielectric loss; 
     def cond(self,**mat_param):
@@ -136,8 +136,8 @@ class Conf(object):
 class Board():
     def __init__(self):
         self.layers=list()
-        self.medium={'er':1.0,'td':0.0}
-    def layer(self,height,er,td=0.0):
+        self.medium={'er':1.0,'td':0.0,'mu':1.00000037}
+    def layer(self,height,er,td=0.0,mu=1.0):
         if height<=0.0 or er<1.0 or td <0.0:
             raise ValueError
         if len(self.layers)>0:
@@ -145,7 +145,7 @@ class Board():
                 raise ValueError('Thickness of conductor of previous layer is greater than height')
             if self.layers[-1]['cover']:
                 raise ValueError('Layer can\'t be applied to cover')
-        self.layers.append({'height':height,'er':er,'td':td,'cover':False,'cond':list()})
+        self.layers.append({'height':height,'er':er,'td':td,'mu':mu,'cover':False,'cond':list()})
     def conductor(self,space,width,thickness,depth=0.0,to_center=False):
         if len(self.layers)==0:
             raise ValueError('It is necessary to create at least one layer')
@@ -166,52 +166,87 @@ class Board():
         # Calculation of structure's right coordinate x
         # FIXME: x['cond'][0]['space'] may be raised exception
         self.max_x=max(map(lambda layer:
-                           reduce(lambda r,cond:
-                                  r+cond['space']+cond['width'],
-                                  layer['cond'],
-                                  layer['cond'][0]['space']
-                                  ),
-                           filter(lambda layer:
-                                  len(layer['cond'])>0,
-                                  self.layers
-                                  )
-                           )
+                           reduce(lambda r,cond:                     \
+                                      r+cond['space']+cond['width'], \
+                                  layer['cond'],                     \
+                                  layer['cond'][0]['space']          \
+                                  ),                                 \
+                           filter(lambda layer:                      \
+                                      len(layer['cond'])>0,          \
+                                  self.layers                        \
+                                  )                                  \
+                           )                                         \
                        )
         # Layers drawing
         y_layer=0.0
-        layers_count=len(self.layers)
+        layer=self.layers
+        layers_count=len(layer)
         for i in xrange(layers_count):
-            layer=self.layers
+            diel_sect=list()
             y_layer+=layer[i]['height']
-            er_top=self.medium('er')
-            eri_top=self.medium('td')
+            er_top=self.medium['er']
+            td_top=self.medium['td']
+            mu_top=self.medium['mu']
+            #eri_top=self.medium('td') * self.medium('er')
             if(layers_count+1!=len(layer):
-                er_top =   layer[i+1]['er']
-                eri_top = -layer[i+1]['td'] * layer[i+1]['er']
-            er_bottom =    layer[i  ]['er']
-            eri_bottom =  -layer[i  ]['td'] * layer[i]['er']
+                er_top = layer[i+1]['er']
+                td_top = layer[i+1]['td']
+                mu_top = layer[i+1]['mu']
+                #eri_top = -layer[i+1]['td'] * layer[i+1]['er']
+            er_bottom = layer[i]['er']
+            td_bottom = layer[i]['td']
+            mu_bottom = layer[i]['mu']
+            #eri_bottom =  -layer[i  ]['td'] * layer[i]['er']
             if not layer[i]['cover']:
                 x_cond_left  = 0.0
                 x_cond_right = 0.0
-                # Conductor-dielectric bounds drawing
+                # Conductor-dielectric bounds building
                 for cond in layer[i]['cond']:
+                    self.conf.cond(er=er_bottom,td=td_bottom,mu=mu_bottom)
                     y_cond_bottom = y_layer       - cond['depth']
                     y_cond_top    = y_cond_bottom + cond['thickness']
                     x_cond_left  +=                 cond['space']
                     x_cond_right  = x_cond_left   + cond['width']
-                    if y_cond_bottom<y_layer:
-                        beg = y_cond_top < y_layer ?
-                                                     Coord(x_cond_left,  y_cond_top):
-                                                     Coord(x_cond_left,  y_layer);
-                        _irSection._section._end   = Coord(x_cond_left,  y_cond_bottom);
-                        _irSection.AddLine();
-                        _irSection._section._begin = Coord(x_cond_right, y_cond_bottom);
-                        _irSection._section._end   = y_cond_top < y_layer ?
-                                                     Coord(x_cond_right, y_cond_top):
-                                                     Coord(x_cond_right, y_layer);
-                        _irSection.AddLine();
-
-            # Cover drawing
+                    if y_cond_bottom < y_layer :
+                        beg=None
+                        if y_cond_top < y_layer : beg=Coord(x_cond_left,  y_cond_top)
+                        else:                     beg=Coord(x_cond_left,  y_layer)
+                        end=Coord(x_cond_left, y_cond_bottom)
+                        self.conf.add(Section(beg,end))
+                        beg = Coord(x_cond_right, y_cond_bottom);
+                        if y_cond_top < y_layer : end=Coord(x_cond_right, y_cond_top)
+                        else:                     end=Coord(x_cond_right, y_layer)
+                        self.conf.add(Section(beg,end))
+                    beg=Coord(x_cond_left,  y_cond_bottom)
+                    end=Coord(x_cond_right, y_cond_bottom)
+                    self.conf.add(Section(beg,end))
+                    if y_cond_top >= y_layer: self.conf.mat_param={'erp':er_top,'tdp':td_top,'mup':mu_top}
+                    if y_cond_top >  y_layer:
+                        beg = Coord(x_cond_right, y_layer)
+                        end = Coord(x_cond_right, y_cond_top)
+                        self.conf.add(Section(beg,end))
+                        beg = Coord(x_cond_left,  y_cond_top)
+                        end = Coord(x_cond_left,  y_layer)
+                       self.conf.add(Section(beg,end))
+                
+                    beg = Coord(x_cond_right, y_cond_top)
+                    end = Coord(x_cond_left,  y_cond_top);
+                    self.conf.add(Section(beg,end))
+                    if cond['depth'] > cond['thickness']:
+                        diel_sect.append((x_cond_left - it_c->space, x_cond_right))
+                    else
+                        diel_sect.append((x_cond_left - it_c->space, x_cond_left))
+                    x_cond_left = x_cond_right
+                # Dielectric-dielectric bounds building
+                self.conf.diel(erp=er_bottom,tdp=td_bottom,mup=mu_bottom,erm=er_top,tdm=td_top,mum=mu_top)
+                for sect in diel_sect:
+                    beg = Coord(sect[0], y_layer)
+                    end = Coord(sect[1], y_layer)
+                    self.conf.add(Section(beg,end))
+                beg = Coord(x_cond_right, y_layer)
+                end = Coord(max_x,        y_layer)
+                self.conf.add(Section(beg,end))
+            # Cover build
             else:
                 pass 
         
