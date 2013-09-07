@@ -128,10 +128,10 @@ class Test_RLGC(unittest.TestCase):
         err=abs(numpy.transpose(self.rlgc.matrix_QL[0:9,0:2])-read_matrix('_mom2d_RLCG_CalcL3.txt'))
         self.assertTrue((err<2e-16).all())
 
-class Test_Board(unittest.TestCase):
+class Test_Board1(unittest.TestCase):
     def setUp(self):
         self.board=Board()
-        self.board.layers=[{'height':1e-3,'er':2.0,'td':0.0,'cover':False,'cond':[{'space':1e-3,'width':0.25e-3,'thickness':100e-6,'depth':50e-6}]}]
+        self.board.layers=[{'height':1e-3,'er':2.0,'td':0.0,'mu':1.0,'cover':False,'cond':[{'space':1e-3,'width':0.25e-3,'thickness':100e-6,'depth':50e-6}]}]
     def test_layer1(self):
         self.assertRaises(ValueError,self.board.layer,height=50e-6,er=3.0)
     def test_conductor1(self):
@@ -150,7 +150,28 @@ class Test_Board(unittest.TestCase):
         self.assertRaises(ValueError,self.board.conductor,space=3e-3,width=1e-3,thickness=0.0,depth=0.0)
     def test_conductor6(self):
         self.assertRaises(ValueError,self.board.conductor,space=3e-3,width=1e-3,thickness=400e-6,depth=-0.1)
-    def test_board2conf1(self):
+    @unittest.skip('Variable max_x is local')
+    def test_board2conf(self):
         self.board.board2conf()
         self.assertAlmostEqual(self.board.max_x,2.25e-3,15)
+
+class Test_Board2(unittest.TestCase):
+    def test_1(self):
+        self.board=Board()
+        self.board.layer(990e-6,4.3)
+        self.board.conductor(800e-6,401e-6,18e-6)
+        self.board.board2conf()
+        x0,x1,x2,x3=0.0,800e-6,1201e-6,2001e-6
+        y1,y2=990e-6,1008e-6
+        er1,er2=4.3,1.0
+        td1,td2=0.0,0.0
+        mu1,mu2=1.0,1.00000037
+        answ=[{'section':Section(Coord(x1,y1),Coord(x2,y1)),'mat_type':False,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1},'mat_count':1,'sect_count':0},\
+              {'section':Section(Coord(x2,y1),Coord(x2,y2)),'mat_type':False,'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'mat_count':1,'sect_count':1},\
+              {'section':Section(Coord(x1,y2),Coord(x1,y1)),'mat_type':False,'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'mat_count':1,'sect_count':2},\
+              {'section':Section(Coord(x2,y2),Coord(x1,y2)),'mat_type':False,'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'mat_count':1,'sect_count':3},\
+              {'section':Section(Coord(x0,y1),Coord(x1,y1)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'mat_count':2,'sect_count':0},\
+              {'section':Section(Coord(x2,y1),Coord(x3,y1)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'mat_count':2,'sect_count':1},\
+              ]
+        self.assertTrue(self.board.conf.list_bounds==answ)
 unittest.main()

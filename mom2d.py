@@ -15,6 +15,8 @@ class Coord(object):
         return self.x==_coord.x and self.y==_coord.y
     def __ne__(self,_coord):
         return self.x!=_coord.x or self.y!=_coord.y
+    def __str__(self):
+        return str((self.x,self.y))
     def sint(self,_coord):
         return (_coord.y-self.y)/hypot(_coord.y-self.y,_coord.x-self.x)
     def cost(self,_coord):
@@ -33,6 +35,10 @@ class Section(object):
         return self.beg==_section.beg and self.end==_section.end
     def __ne__(self,_section):
         return self.beg!=_section.beg or self.end!=_section.end
+    def __str__(self):
+        return str(str(self.beg)+'-'+str(self.end))
+    def __repr__(self):
+        return str(self)
     @property
     def center(self):
         return self.beg.center(self.end)
@@ -164,19 +170,19 @@ class Board():
     def board2conf(self):
         self.conf=Conf()
         # Calculation of structure's right coordinate x
-        # FIXME: x['cond'][0]['space'] may be raised exception
-        self.max_x=max(map(lambda layer:
+# FIXME: x['cond'][0]['space'] may be raised exception
+        max_x=max(map(lambda layer:
                            reduce(lambda r,cond:                     \
                                       r+cond['space']+cond['width'], \
                                   layer['cond'],                     \
                                   layer['cond'][0]['space']          \
                                   ),                                 \
-                           filter(lambda layer:                      \
-                                      len(layer['cond'])>0,          \
-                                  self.layers                        \
-                                  )                                  \
-                           )                                         \
-                       )
+                      filter(lambda layer:                           \
+                                 len(layer['cond'])>0,               \
+                             self.layers                             \
+                             )                                       \
+                      )                                              \
+                  )
         # Layers drawing
         y_layer=0.0
         layer=self.layers
@@ -188,7 +194,7 @@ class Board():
             td_top=self.medium['td']
             mu_top=self.medium['mu']
             #eri_top=self.medium('td') * self.medium('er')
-            if(layers_count+1!=len(layer):
+            if layers_count+1<len(layer):
                 er_top = layer[i+1]['er']
                 td_top = layer[i+1]['td']
                 mu_top = layer[i+1]['mu']
@@ -202,7 +208,7 @@ class Board():
                 x_cond_right = 0.0
                 # Conductor-dielectric bounds building
                 for cond in layer[i]['cond']:
-                    self.conf.cond(er=er_bottom,td=td_bottom,mu=mu_bottom)
+                    self.conf.cond(erp=er_bottom,tdp=td_bottom,mup=mu_bottom)
                     y_cond_bottom = y_layer       - cond['depth']
                     y_cond_top    = y_cond_bottom + cond['thickness']
                     x_cond_left  +=                 cond['space']
@@ -227,15 +233,15 @@ class Board():
                         self.conf.add(Section(beg,end))
                         beg = Coord(x_cond_left,  y_cond_top)
                         end = Coord(x_cond_left,  y_layer)
-                       self.conf.add(Section(beg,end))
+                        self.conf.add(Section(beg,end))
                 
                     beg = Coord(x_cond_right, y_cond_top)
                     end = Coord(x_cond_left,  y_cond_top);
                     self.conf.add(Section(beg,end))
                     if cond['depth'] > cond['thickness']:
-                        diel_sect.append((x_cond_left - it_c->space, x_cond_right))
-                    else
-                        diel_sect.append((x_cond_left - it_c->space, x_cond_left))
+                        diel_sect.append((x_cond_left - cond['space'], x_cond_right))
+                    else:
+                        diel_sect.append((x_cond_left - cond['space'], x_cond_left))
                     x_cond_left = x_cond_right
                 # Dielectric-dielectric bounds building
                 self.conf.diel(erp=er_bottom,tdp=td_bottom,mup=mu_bottom,erm=er_top,tdm=td_top,mum=mu_top)
@@ -244,11 +250,12 @@ class Board():
                     end = Coord(sect[1], y_layer)
                     self.conf.add(Section(beg,end))
                 beg = Coord(x_cond_right, y_layer)
-                end = Coord(max_x,        y_layer)
+                end = Coord(max_x,   y_layer)
                 self.conf.add(Section(beg,end))
-            # Cover build
+            # Cover building
             else:
-                pass 
+                if len(layer)>1:
+                    pass
         
 '''
 Port from smn.cpp
@@ -315,7 +322,7 @@ class Smn(object):
             return 2*(c*(atan(a1/c)-atan(a2/c))-dn)+a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)
         return a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)-2*dn
 
-    # TODO: Refactoring
+# TODO: Refactoring
     def SmnAny2D(self):
         self.matrix_S=numpy.zeros((self.m_size,self.m_size))
         self.diag_S11_C=numpy.zeros((self.n_d))
@@ -338,10 +345,11 @@ class Smn(object):
             erm = bound_m['mat_param'].get('erm', 1.0)
             mup = bound_m['mat_param'].get('mup', 1.0)
             mum = bound_m['mat_param'].get('mum', 1.00001)
+# FIXME: Parameters er,td and mu need to make optional
             if erp==erm:
                 raise ValueError('Dielectric constant of right side is equal to value of left side')
             er_plus=(erp+erm)*pi/(erp-erm)
-            mu_plus=(1/mup+1/mum)*pi/(1/mup-1/mum)
+            mu_plus=(mum+mup)*pi/(mum-mup)
             # BEGIN cycle through subintervals
             for subint_m in xrange(n_subint_m):
                 # DO JUST THE SAME CALCULATIONS FOR INTEGRAL INTERVALS
@@ -386,7 +394,7 @@ class Smn(object):
                             if m==n:
                                 self.diag_S11_C[n-self.n_c]=Imn + er_plus
                                 self.diag_S11_L[n-self.n_c]=Imn + mu_plus
-                            # HACK: This code is meaningless
+# HACK: This code is meaningless
                             #if Imn == 0.0:
                             #    self.matrix_S[m, n] = -1.0
                             else:
@@ -403,7 +411,7 @@ class Smn(object):
                 ym += dym
              # END cycle through subintervals
          # END cycle through intervals
-        # FIXME: fill additional row an column for calculate L
+# FIXME: fill additional row an column for calculate L
         if not self.iflg : # fill in additional row and column
             sz = m_size-1
             n = 0
@@ -419,8 +427,8 @@ class Smn(object):
                         self.matrix_S[n,sz],self.matrix_S[sz,n] = 0.0,0.0
                     n+=1
 
-    # TODO: Refactoring
-    # FIXME: diag_S11_L and diag_S11_C
+# TODO: Refactoring
+# FIXME: diag_S11_L and diag_S11_C
     def SmnOrtho(self):
         self.matrix_S=numpy.zeros((self.m_size,self.m_size))
         bUpdate=False
@@ -554,6 +562,7 @@ class Smn(object):
                     else: # clear rest of matrix cells
                         self.matrix_S[n,sz],self.matrix_S[sz,n] = 0.0,0.0
                     n+=1
+
 class RLGC(Smn):
     def calcLC(self):
         cond_sect=(filter(lambda x: x['mat_type']==False,self.list_bounds))
@@ -587,8 +596,8 @@ class RLGC(Smn):
             if old_cond!=bound['mat_count']: m+=1
             old_cond=bound['mat_count']
             end=beg+bound['n_subint']
-            # FIXME: It works only for equable segmentation
-            # For smart segmentation is necessary to take length of the every subinterval
+# FIXME: It works only for equable segmentation
+# For smart segmentation is necessary to take length of the every subinterval
             subint_len=bound['section'].getSubinterval(n=bound['n_subint']).len
             self.matrix_QC[beg:end,0:n_cond]*=subint_len*bound['mat_param']['erp']
             self.matrix_QL[beg:end,0:n_cond]*=subint_len/bound['mat_param']['mup']
