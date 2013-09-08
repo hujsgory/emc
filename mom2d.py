@@ -149,9 +149,9 @@ class Board():
         if len(self.layers)>0:
             if height<=max(map(lambda x: x['thickness']-x['depth'], self.layers[-1]['cond'])):
                 raise ValueError('Thickness of conductor of previous layer is greater than height')
-            if self.layers[-1]['cover']:
+            if self.layers[-1]['is_cover']:
                 raise ValueError('Layer can\'t be applied to cover')
-        self.layers.append({'height':height,'er':er,'td':td,'mu':mu,'cover':False,'cond':list()})
+        self.layers.append({'height':height,'er':er,'td':td,'mu':mu,'is_cover':False,'cond':list()})
     def conductor(self,space,width,thickness,depth=0.0,to_center=False):
         if len(self.layers)==0:
             raise ValueError('It is necessary to create at least one layer')
@@ -166,7 +166,9 @@ class Board():
             raise ValueError('Depth is greater than layer height')
         last_layer_cond.append({'space':space,'width':width,'thickness':thickness,'depth':depth})
     def cover(self,height,er,td=0.0):
-        self.layers.append({'height':height,'er':er,'td':td,'cover':False,'cond':list()})
+        if len(self.layers)==0:
+            raise ValueError('It is necessary to create at least one layer')
+        self.layers.append({'height':height,'er':er,'td':td,'is_cover':True,'cond':list()})
     def board2conf(self):
         self.conf=Conf()
         # Calculation of structure's right coordinate x
@@ -203,7 +205,7 @@ class Board():
             td_bottom = layer[i]['td']
             mu_bottom = layer[i]['mu']
             #eri_bottom =  -layer[i  ]['td'] * layer[i]['er']
-            if not layer[i]['cover']:
+            if not layer[i]['is_cover']:
                 x_cond_left  = 0.0
                 x_cond_right = 0.0
                 # Conductor-dielectric bounds building
@@ -254,8 +256,39 @@ class Board():
                 self.conf.add(Section(beg,end))
             # Cover building
             else:
-                if len(layer)>1:
-                    pass
+#FIXME: layer[i]['cover'] must be fixed in end; make job in temporary list
+                layer[i]['cover']=list()
+                width_all=0.0
+                if layer[i-1]['is_layer']:
+                    surface=layer[i-1]['cover']
+                else:
+                    surface=layer[i-1]['cond']
+                for section in surface:
+                    space=section.get('space',0.0)
+                    if space>0.0:
+                        layer[i]['cover'].append({'width':space,'thickness':0.0})
+                        width_all+=section['space']
+                    thickness=section['thickness']-section.get('depth',0.0)
+                    if thickness<=0.0: thickness=0.0
+                    width_all+=section['width']
+                    layer[i]['cover'].append({'width':section['width'],'thickness':thickness})
+                layer[i]['cover'].append({'width':max_x-width_all,'thickness':0.0})
+
+                cover=layer[i]['cover']
+                for j in xrange(len(cover)-1):
+                    if cover[j]['thickness']>cover[j+1]['thickness']:
+                        cover[j  ]['width']+=layer[i]['height']
+                        cover[j+1]['width']-=layer[i]['height']
+                    elif cover[j]['thickness']<cover[j+1]['thickness']:
+                        cover[j  ]['width']-=layer[i]['height']
+                        cover[j+1]['width']+=layer[i]['height']
+                
+                # Remove sections, when width is negative or 0
+                check_width=True
+                while check_width:
+                    check_width=False
+                    for cover in layer[i]['cover']:
+                        pass
         
 '''
 Port from smn.cpp
