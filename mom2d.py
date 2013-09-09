@@ -70,7 +70,7 @@ class Conf(object):
         self.list_bounds=list()
         self.iflg=True
         self.mat_type=False     #mat_type: False - Conductor-Dielectric bound_m, True - Dielectric-Dielectric bound_m
-        self.mat_count=0
+        self.obj_count=0
         self.sect_count=0
         self.mat_param=dict()
     def __iter__(self):
@@ -123,19 +123,19 @@ class Conf(object):
             erm = self.mat_param.get('erm', 1.0)
             if self.mat_type and erp==erm:
                 raise ValueError
-            self.list_bounds.append({'section':section,'mat_type':self.mat_type,'n_subint':n_subint,'mat_param':self.mat_param, 'mat_count': self.mat_count,'sect_count': self.sect_count})
+            self.list_bounds.append({'section':section,'mat_type':self.mat_type,'n_subint':n_subint,'mat_param':self.mat_param, 'obj_count': self.obj_count,'sect_count': self.sect_count})
             self.sect_count+=1
         else: raise TypeError
     # mat_param: erp - relative permittivity on right side of section, erm - on left side; tdp,tdm - tangent dielectric loss; 
     def cond(self,**mat_param):
         self.mat_param=mat_param
         self.mat_type=False
-        self.mat_count+=1
+        self.obj_count+=1
         self.sect_count=0
     def diel(self,**mat_param):
         self.mat_param=mat_param
         self.mat_type=True
-        self.mat_count+=1
+        self.obj_count+=1
         self.sect_count=0
 
 
@@ -165,10 +165,10 @@ class Board():
         if depth>=self.layers[-1]['height']:
             raise ValueError('Depth is greater than layer height')
         last_layer_cond.append({'space':space,'width':width,'thickness':thickness,'depth':depth})
-    def cover(self,height,er,td=0.0):
+    def cover(self,height,er,td=0.0,mu=1.0):
         if len(self.layers)==0:
             raise ValueError('It is necessary to create at least one layer')
-        self.layers.append({'height':height,'er':er,'td':td,'is_cover':True,'cond':list()})
+        self.layers.append({'height':height,'er':er,'td':td,'mu':mu,'is_cover':True,'cond':list()})
     def board2conf(self):
         self.conf=Conf()
         # Calculation of structure's right coordinate x
@@ -187,29 +187,29 @@ class Board():
                   )
         # Layers drawing
         y_layer=0.0
-        layer=self.layers
-        layers_count=len(layer)
-        for i in xrange(layers_count):
+        #layer=self.layers
+        #layers_count=len(layer)
+        for i,layer in enumerate(self.layers): #xrange(layers_count):
             diel_sect=list()
-            y_layer+=layer[i]['height']
+            y_layer+=layer['height']
             er_top=self.medium['er']
             td_top=self.medium['td']
             mu_top=self.medium['mu']
             #eri_top=self.medium('td') * self.medium('er')
-            if layers_count+1<len(layer):
-                er_top = layer[i+1]['er']
-                td_top = layer[i+1]['td']
-                mu_top = layer[i+1]['mu']
+            if i+1<len(self.layers):
+                er_top = self.layers[i+1]['er']
+                td_top = self.layers[i+1]['td']
+                mu_top = self.layers[i+1]['mu']
                 #eri_top = -layer[i+1]['td'] * layer[i+1]['er']
-            er_bottom = layer[i]['er']
-            td_bottom = layer[i]['td']
-            mu_bottom = layer[i]['mu']
-            #eri_bottom =  -layer[i  ]['td'] * layer[i]['er']
-            if not layer[i]['is_cover']:
+            er_bottom = layer['er']
+            td_bottom = layer['td']
+            mu_bottom = layer['mu']
+            #eri_bottom =  -layer[i  ]['td'] * layer['er']
+            if not layer['is_cover']:
                 x_cond_left  = 0.0
                 x_cond_right = 0.0
                 # Conductor-dielectric bounds building
-                for cond in layer[i]['cond']:
+                for cond in layer['cond']:
                     self.conf.cond(erp=er_bottom,tdp=td_bottom,mup=mu_bottom)
                     y_cond_bottom = y_layer       - cond['depth']
                     y_cond_top    = y_cond_bottom + cond['thickness']
@@ -256,40 +256,65 @@ class Board():
                 self.conf.add(Section(beg,end))
             # Cover building
             else:
-#FIXME: layer[i]['cover'] must be fixed in end; make job in temporary list
-                layer[i]['cover']=list()
+                layer['cover']=list()
                 width_all=0.0
-                if layer[i-1]['is_layer']:
-                    surface=layer[i-1]['cover']
+                if self.layers[i-1]['is_cover']:
+                    surface=self.layers[i-1]['cover']
                 else:
-                    surface=layer[i-1]['cond']
+                    surface=self.layers[i-1]['cond']
                 for section in surface:
                     space=section.get('space',0.0)
                     if space>0.0:
-                        layer[i]['cover'].append({'width':space,'thickness':0.0})
+                        layer['cover'].append({'width':space,'thickness':0.0})
                         width_all+=section['space']
                     thickness=section['thickness']-section.get('depth',0.0)
                     if thickness<=0.0: thickness=0.0
                     width_all+=section['width']
-                    layer[i]['cover'].append({'width':section['width'],'thickness':thickness})
-                layer[i]['cover'].append({'width':max_x-width_all,'thickness':0.0})
+                    layer['cover'].append({'width':section['width'],'thickness':thickness})
+                layer['cover'].append({'width':max_x-width_all,'thickness':0.0})
 
-                cover=layer[i]['cover']
+                cover=layer['cover']
                 for j in xrange(len(cover)-1):
                     if cover[j]['thickness']>cover[j+1]['thickness']:
-                        cover[j  ]['width']+=layer[i]['height']
-                        cover[j+1]['width']-=layer[i]['height']
+                        cover[j  ]['width']+=layer['height']
+                        cover[j+1]['width']-=layer['height']
                     elif cover[j]['thickness']<cover[j+1]['thickness']:
-                        cover[j  ]['width']-=layer[i]['height']
-                        cover[j+1]['width']+=layer[i]['height']
+                        cover[j  ]['width']-=layer['height']
+                        cover[j+1]['width']+=layer['height']
                 
                 # Remove sections, when width is negative or 0
                 check_width=True
-                while check_width:
+                while check_width :
                     check_width=False
-                    for cover in layer[i]['cover']:
-                        pass
-        
+                    j=0
+                    while j<len(cover) :
+                        if cover[j]['width']<=0. and len(cover)>1 :
+                            if j==0 :
+                                cover[j+1]['width']+=cover[j]['width']
+                            elif j==len(cover)-1 :
+                                cover[j-1]['width']+=cover[j]['width']
+                            else :
+                                cover[j+1]['width']+=cover[j]['width']/2.0
+                                cover[j-1]['width']+=cover[j]['width']/2.0
+                            del cover[j]
+                            check_width=True
+                            continue
+                        j+=1
+                
+                self.conf.diel(erp=er_bottom,tdp=td_bottom,mup=mu_bottom,erm=er_top,tdm=td_top,mum=mu_top)
+                x_left,x_right=0.0,0.0
+# FIXME: don't building ended section
+                for section_cur,section_next in zip(cover,cover[1:]) :
+                    x_right = x_left + section_cur['width']
+                    beg=Coord(x_left, y_layer+section_cur['thickness'])
+                    end=Coord(x_right,y_layer+section_cur['thickness'])
+                    self.conf.add(Section(beg,end))
+                    if section_cur['thickness']!=section_next['thickness']:
+                        beg=Coord(x_right,y_layer+section_cur ['thickness'])
+                        end=Coord(x_right,y_layer+section_next['thickness'])
+                        self.conf.add(Section(beg,end))
+                    x_left=x_right
+
 '''
 Port from smn.cpp
 '''
@@ -299,7 +324,7 @@ class Smn(object):
     def __init__(self,conf):
         if type(conf) is not Conf:
             raise TypeError
-        self.list_bounds=sorted(conf.list_bounds,key=lambda x: [x['mat_type'],x['mat_count'],x['sect_count']])
+        self.list_bounds=sorted(conf.list_bounds,key=lambda x: [x['mat_type'],x['obj_count'],x['sect_count']])
         self.iflg=conf.iflg
         self.n_c,self.n_d=0,0
         for bound in self.list_bounds:
@@ -599,15 +624,15 @@ class Smn(object):
 class RLGC(Smn):
     def calcLC(self):
         cond_sect=(filter(lambda x: x['mat_type']==False,self.list_bounds))
-        n_cond=len(set(map(lambda x: x['mat_count'],cond_sect)))
+        n_cond=len(set(map(lambda x: x['obj_count'],cond_sect)))
         self.SmnAny2D()
 
         # Excitation vector filling
         exc_v = numpy.zeros((self.m_size,n_cond))
-        beg,n,old_cond=0,0,cond_sect[0]['mat_count']
+        beg,n,old_cond=0,0,cond_sect[0]['obj_count']
         for bound in cond_sect:
-            if old_cond!=bound['mat_count']: n+=1
-            old_cond=bound['mat_count']
+            if old_cond!=bound['obj_count']: n+=1
+            old_cond=bound['obj_count']
             end=beg+bound['n_subint']
             exc_v[beg:end,n]=Coef_C
             beg=end
@@ -624,10 +649,10 @@ class RLGC(Smn):
         # Matrix C and L calculating
         self.mC = numpy.zeros((n_cond,n_cond))
         self.mL = numpy.zeros((n_cond,n_cond))
-        beg,m,old_cond=0,0,cond_sect[0]['mat_count']
+        beg,m,old_cond=0,0,cond_sect[0]['obj_count']
         for bound in cond_sect:
-            if old_cond!=bound['mat_count']: m+=1
-            old_cond=bound['mat_count']
+            if old_cond!=bound['obj_count']: m+=1
+            old_cond=bound['obj_count']
             end=beg+bound['n_subint']
 # FIXME: It works only for equable segmentation
 # For smart segmentation is necessary to take length of the every subinterval
