@@ -147,7 +147,7 @@ class Board():
         if height<=0.0 or er<1.0 or td <0.0:
             raise ValueError
         if len(self.layers)>0:
-            if height<=max(map(lambda x: x['thickness']-x['depth'], self.layers[-1]['cond'])):
+            if len(self.layers[-1]['cond'])>0 and height<=max(map(lambda x: x['thickness']-x['depth'], self.layers[-1]['cond'])):
                 raise ValueError('Thickness of conductor of previous layer is greater than height')
             if self.layers[-1]['is_cover']:
                 raise ValueError('Layer can\'t be applied to cover')
@@ -300,10 +300,9 @@ class Board():
                             check_width=True
                             continue
                         j+=1
-                
+                # 
                 self.conf.diel(erp=er_bottom,tdp=td_bottom,mup=mu_bottom,erm=er_top,tdm=td_top,mum=mu_top)
                 x_left,x_right=0.0,0.0
-# FIXME: don't building ended section
                 for section_cur,section_next in zip(cover,cover[1:]) :
                     x_right = x_left + section_cur['width']
                     beg=Coord(x_left, y_layer+section_cur['thickness'])
@@ -314,6 +313,10 @@ class Board():
                         end=Coord(x_right,y_layer+section_next['thickness'])
                         self.conf.add(Section(beg,end))
                     x_left=x_right
+                x_right = x_left + cover[-1]['width']
+                beg=Coord(x_left, y_layer+cover[-1]['thickness'])
+                end=Coord(x_right,y_layer+cover[-1]['thickness'])
+                self.conf.add(Section(beg,end))
 
 '''
 Port from smn.cpp

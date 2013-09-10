@@ -181,7 +181,7 @@ class Test_Board2(unittest.TestCase):
         er1,er2=4.8,1.0
         td1,td2=0.0,0.0
         mu1,mu2=1.0,1.00000037
-        x0,x1,x2,x3=0.0,769e-6,1232e-6,2002e-6
+        x0,x1,x2,x3=0.0,769e-6,1232e-6,2001e-6
         y2,y3=1021e-6,1039e-6
         answ=[\
               {'section':Section(Coord(x0,y2),Coord(x1,y2)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':0},\
@@ -191,5 +191,5 @@ class Test_Board2(unittest.TestCase):
               {'section':Section(Coord(x2,y2),Coord(x3,y2)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':4},\
               ]
         self.assertTrue(self.board.conf.list_bounds[6:]==answ)
-        
+
 unittest.main()
