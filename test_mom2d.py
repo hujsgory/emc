@@ -58,6 +58,7 @@ class Test_Smn(unittest.TestCase):
         self.smn.SmnAny2D()
         self.assertTrue((abs(self.smn.matrix_S-[[3.84183,1.05704],[0.12258,0]])<1e-5).all())
         self.assertTrue(abs(self.smn.diag_S11_C[0]-9.42478)<1e-5)
+    @unittest.skip('Removed')
     def test_SmnOrtho(self):
         self.smn.SmnOrtho()
         self.assertTrue((abs(self.smn.matrix_S-[[3.52549,0.78204],[-0.33587,9.42478]])<1e-5).all())
