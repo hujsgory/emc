@@ -329,15 +329,22 @@ class Smn(object):
             raise TypeError
         self.list_bounds=sorted(conf.list_bounds,key=lambda x: [x['mat_type'],x['obj_count'],x['sect_count']])
         self.iflg=conf.iflg
-        self.n_c,self.n_d=0,0
+        self.nc,self.nd,self.nd_C,self.nd_L=0,0,0,0
         for bound in self.list_bounds:
             if bound['mat_type']:
-                self.n_d+=bound['n_subint']
+                if bound['mat_param'].get('erp',1.0)!=bound['mat_param'].get('erm',1.0):
+                    self.nd_C+=bound['n_subint']
+                if bound['mat_param'].get('mup',1.0)!=bound['mat_param'].get('mum',1.0):
+                    self.nd_L+=bound['n_subint']
+                self.nd+=bound['n_subint']
             else:
-                self.n_c+=bound['n_subint']
-        self.m_size=self.n_c+self.n_d
+                self.nc+=bound['n_subint']
+        self.m_size=self.nc+self.nd
         if not self.iflg :
             self.m_size+=1 # add one row and one column
+            self.nd_C+=1
+            self.nd_L+=1
+
     def sumatan(self,a1,a2,c):
         if c==0.0:
             return -(a1+a2)/(a1*a2)
@@ -378,13 +385,28 @@ class Smn(object):
         if c!=0.0:
             return 2*(c*(atan(a1/c)-atan(a2/c))-dn)+a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)
         return a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)-2*dn
+    def SmnC(self):
+        pass
+    def SmnL(self):
+        pass
+    def Smn(self):
+        self.matrix_S00=numpy.zeros((self.nc,self.nc))
+        self.matrix_S01_C=numpy.zeros((self.nc,self.nd_C))
+        self.matrix_S10_C=numpy.zeros((self.nd_C,self.nc))
+        self.matrix_S11_C=numpy.zeros((self.nd_C,self.nd_C))
+        self.matrix_S01_L=numpy.zeros((self.nc,self.nd_L))
+        self.matrix_S10_L=numpy.zeros((self.nd_L,self.nc))
+        self.matrix_S11_L=numpy.zeros((self.nd_L,self.nd_L))
+        for bound_m in self.list_bounds:
+            for bound_n in self.list_bounds:
+                pass
+
 
 # TODO: Refactoring
     def SmnAny2D(self):
         self.matrix_S=numpy.zeros((self.m_size,self.m_size))
-        self.diag_S11_C=numpy.zeros((self.n_d))
-        self.diag_S11_L=numpy.zeros((self.n_d))
-        bUpdate=False
+        self.diag_S11_C=numpy.zeros((self.nd))
+        self.diag_S11_L=numpy.zeros((self.nd))
         m = 0
         for bound_m in self.list_bounds:
             section_m=bound_m['section']
@@ -442,15 +464,15 @@ class Smn(object):
                             # Imn= sinm*(Ix-Ix1)-cosm*(Iy-Iy1)
                             f2= self.F2(a2, b2, dn2)
                             f3= self.F3(a2, b2, dn2)
-                            Imn= ((dx   -b2*cosn)*f2-cosn*f3)*sinm -((ym-yn-b2*sinn)*f2-sinn*f3)*cosm 
+                            Imn=        ((dx   -b2*cosn)*f2-cosn*f3)*sinm - ((ym-yn-b2*sinn)*f2-sinn*f3)*cosm 
                             if self.iflg:
                                 f2= self.F2(a1, b1, dn2)
                                 f3= self.F3(a1, b1, dn2)
                                 Imn += -((dx   -b1*cosn)*f2-cosn*f3)*sinm + ((ym+yn+b1*sinn)*f2-sinn*f3)*cosm 
                                 b1-= dn
                             if m==n:
-                                self.diag_S11_C[n-self.n_c]=Imn + er_plus
-                                self.diag_S11_L[n-self.n_c]=Imn + mu_plus
+                                self.diag_S11_C[n-self.nc]=Imn + er_plus
+                                self.diag_S11_L[n-self.nc]=Imn + mu_plus
 # HACK: This code is meaningless
                             #if Imn == 0.0:
                             #    self.matrix_S[m, n] = -1.0
@@ -502,12 +524,12 @@ class RLGC(Smn):
             beg=end
 
         # Matrix Q calculating
-        for i in xrange(self.n_c,self.m_size):
-            self.matrix_S[i,i]=self.diag_S11_C[i-self.n_c]
+        for i in xrange(self.nc,self.m_size):
+            self.matrix_S[i,i]=self.diag_S11_C[i-self.nc]
         self.matrix_QC=la.solve(self.matrix_S,exc_v)
 
-        for i in xrange(self.n_c,self.m_size):
-            self.matrix_S[i,i]=self.diag_S11_L[i-self.n_c]
+        for i in xrange(self.nc,self.m_size):
+            self.matrix_S[i,i]=self.diag_S11_L[i-self.nc]
         self.matrix_QL=la.solve(self.matrix_S,exc_v)
 
         # Matrix C and L calculating
@@ -529,6 +551,6 @@ class RLGC(Smn):
             beg=end
         self.mL=la.inv(self.mL)/(V0*V0)
 
-        for i in xrange(self.n_c,self.m_size):
+        for i in xrange(self.nc,self.m_size):
             self.matrix_S[i,i]=0.0
 
