@@ -510,9 +510,14 @@ class Smn(object):
 class RLGC(Smn):
     def calcC(self):
         self.isCalcC=True
+        self.calcAll()
     def calcL(self):
         self.isCalcL=True
+        self.calcAll()
     def calcLC(self):
+        self.isCalcC,self.isCalcL=True,True
+        self.calcAll()
+    def calcAll(self):
         cond_sect=filter(lambda x: x['mat_type']==False,self.list_bounds)
         n_cond=len(set(map(lambda x: x['obj_count'],cond_sect)))
         self.SmnAny2D()
@@ -528,17 +533,19 @@ class RLGC(Smn):
             beg=end
 
         # Matrix Q calculating
-        for i in xrange(self.nc,self.m_size):
-            self.matrix_S[i,i]=self.diag_S11_C[i-self.nc]
-        self.matrix_QC=la.solve(self.matrix_S,exc_v)
+        if self.isCalcC:
+            for i in xrange(self.nc,self.m_size):
+                self.matrix_S[i,i]=self.diag_S11_C[i-self.nc]
+            self.matrix_QC=la.solve(self.matrix_S,exc_v)
+            self.mC = numpy.zeros((n_cond,n_cond))
 
-        for i in xrange(self.nc,self.m_size):
-            self.matrix_S[i,i]=self.diag_S11_L[i-self.nc]
-        self.matrix_QL=la.solve(self.matrix_S,exc_v)
-
+        if self.isCalcL:
+            for i in xrange(self.nc,self.m_size):
+                self.matrix_S[i,i]=self.diag_S11_L[i-self.nc]
+            self.matrix_QL=la.solve(self.matrix_S,exc_v)
+            self.mL = numpy.zeros((n_cond,n_cond))
         # Matrix C and L calculating
-        self.mC = numpy.zeros((n_cond,n_cond))
-        self.mL = numpy.zeros((n_cond,n_cond))
+        
         beg,m,old_cond=0,0,cond_sect[0]['obj_count']
         for bound in cond_sect:
             if old_cond!=bound['obj_count']: m+=1
@@ -549,12 +556,11 @@ class RLGC(Smn):
             subint_len=bound['section'].getSubinterval(n=bound['n_subint']).len
             self.matrix_QC[beg:end,0:n_cond]*=subint_len*bound['mat_param']['erp']
             self.matrix_QL[beg:end,0:n_cond]*=subint_len/bound['mat_param']['mup']
+
             for n in xrange(n_cond):
-                self.mC[m,n]+=self.matrix_QC[beg:end,n].sum()
-                self.mL[m,n]+=self.matrix_QL[beg:end,n].sum()
+                if self.isCalcC: self.mC[m,n]+=self.matrix_QC[beg:end,n].sum()
+                if self.isCalcL: self.mL[m,n]+=self.matrix_QL[beg:end,n].sum()
             beg=end
-        self.mL=la.inv(self.mL)/(V0*V0)
-
+        if self.isCalcL: self.mL=la.inv(self.mL)/(V0*V0)
         for i in xrange(self.nc,self.m_size):
-            self.matrix_S[i,i]=0.0
-
+            self.matrix_S[i,i]=0.0 

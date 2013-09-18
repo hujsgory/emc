@@ -108,25 +108,25 @@ class Test_RLGC(unittest.TestCase):
     def test_calcC1(self):
         self.assertEqual(self.rlgc.n_cond,2,self.rlgc.n_cond)
     def test_calcC2(self):
-        err=abs(numpy.transpose(self.rlgc.matrix_QC[0:9,0:2])-read_matrix('_mom2d_RLCG_CalcC2.txt'))
+        err=abs(numpy.transpose(self.rlgc.matrix_QC[0:9,0:2])-read_matrix('_mom2d_RLGC_CalcC2.txt'))
         self.assertTrue((err<2e-15).all())
     def test_calcC3(self):
-        err=abs(self.rlgc.matrix_S-read_matrix('_mom2d_RLCG_CalcC3.txt'))
+        err=abs(self.rlgc.matrix_S-read_matrix('_mom2d_RLGC_CalcC3.txt'))
         self.assertTrue((err<2e-4).all())
     def test_calcC4(self):
-        err=abs(self.rlgc.diag_S11_C-read_vector('_mom2d_RLCG_CalcC4.txt'))
+        err=abs(self.rlgc.diag_S11_C-read_vector('_mom2d_RLGC_CalcC4.txt'))
         self.assertTrue((err<2e-4).all())
     def test_calcC5(self):
-        err=abs(self.rlgc.mC-read_matrix('_mom2d_RLCG_CalcC5.txt'))
+        err=abs(self.rlgc.mC-read_matrix('_mom2d_RLGC_CalcC5.txt'))
         self.assertTrue((err<1e-15).all())
     def test_calcL1(self):
-        err=abs(self.rlgc.mL-read_matrix('_mom2d_RLCG_CalcL1.txt'))
+        err=abs(self.rlgc.mL-read_matrix('_mom2d_RLGC_CalcL1.txt'))
         self.assertTrue((err<1e-12).all())
     def test_calcL2(self):
-        err=abs(self.rlgc.diag_S11_L-read_vector('_mom2d_RLCG_CalcL2.txt'))
+        err=abs(self.rlgc.diag_S11_L-read_vector('_mom2d_RLGC_CalcL2.txt'))
         self.assertTrue((err<2e-4).all())
     def test_calcL3(self):
-        err=abs(numpy.transpose(self.rlgc.matrix_QL[0:9,0:2])-read_matrix('_mom2d_RLCG_CalcL3.txt'))
+        err=abs(numpy.transpose(self.rlgc.matrix_QL[0:9,0:2])-read_matrix('_mom2d_RLGC_CalcL3.txt'))
         self.assertTrue((err<2e-16).all())
 
 class Test_Board1(unittest.TestCase):
