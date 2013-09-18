@@ -187,24 +187,19 @@ class Board():
                   )
         # Layers drawing
         y_layer=0.0
-        #layer=self.layers
-        #layers_count=len(layer)
-        for i,layer in enumerate(self.layers): #xrange(layers_count):
+        for i,layer in enumerate(self.layers):
             diel_sect=list()
             y_layer+=layer['height']
             er_top=self.medium['er']
             td_top=self.medium['td']
             mu_top=self.medium['mu']
-            #eri_top=self.medium('td') * self.medium('er')
             if i+1<len(self.layers):
                 er_top = self.layers[i+1]['er']
                 td_top = self.layers[i+1]['td']
                 mu_top = self.layers[i+1]['mu']
-                #eri_top = -layer[i+1]['td'] * layer[i+1]['er']
             er_bottom = layer['er']
             td_bottom = layer['td']
             mu_bottom = layer['mu']
-            #eri_bottom =  -layer[i  ]['td'] * layer['er']
             if not layer['is_cover']:
                 x_cond_left  = 0.0
                 x_cond_right = 0.0
@@ -344,6 +339,7 @@ class Smn(object):
             self.m_size+=1 # add one row and one column
             self.nd_C+=1
             self.nd_L+=1
+        self.isCalcC,self.isCalcL=False,False
 
     def sumatan(self,a1,a2,c):
         if c==0.0:
@@ -391,12 +387,16 @@ class Smn(object):
         pass
     def Smn(self):
         self.matrix_S00=numpy.zeros((self.nc,self.nc))
-        self.matrix_S01_C=numpy.zeros((self.nc,self.nd_C))
-        self.matrix_S10_C=numpy.zeros((self.nd_C,self.nc))
-        self.matrix_S11_C=numpy.zeros((self.nd_C,self.nd_C))
-        self.matrix_S01_L=numpy.zeros((self.nc,self.nd_L))
-        self.matrix_S10_L=numpy.zeros((self.nd_L,self.nc))
-        self.matrix_S11_L=numpy.zeros((self.nd_L,self.nd_L))
+        if self.isCalcC:
+            self.matrix_S01_C=numpy.zeros((self.nc,self.nd_C))
+            self.matrix_S10_C=numpy.zeros((self.nd_C,self.nc))
+            self.matrix_S11_C=numpy.zeros((self.nd_C,self.nd_C))
+        if self.isCalcL:
+            self.matrix_S01_L=numpy.zeros((self.nc,self.nd_L))
+            self.matrix_S10_L=numpy.zeros((self.nd_L,self.nc))
+            self.matrix_S11_L=numpy.zeros((self.nd_L,self.nd_L))
+        cond_sect=filter(lambda x: x['mat_type']==False,self.list_bounds)
+        diel_sect=filter(lambda x: x['mat_type']==False,self.list_bounds)
         for bound_m in self.list_bounds:
             for bound_n in self.list_bounds:
                 pass
@@ -508,8 +508,12 @@ class Smn(object):
 
 
 class RLGC(Smn):
+    def calcC(self):
+        self.isCalcC=True
+    def calcL(self):
+        self.isCalcL=True
     def calcLC(self):
-        cond_sect=(filter(lambda x: x['mat_type']==False,self.list_bounds))
+        cond_sect=filter(lambda x: x['mat_type']==False,self.list_bounds)
         n_cond=len(set(map(lambda x: x['obj_count'],cond_sect)))
         self.SmnAny2D()
 
