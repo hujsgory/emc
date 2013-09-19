@@ -323,6 +323,8 @@ class Smn(object):
         if type(conf) is not Conf:
             raise TypeError
         self.list_bounds=sorted(conf.list_bounds,key=lambda x: [x['mat_type'],x['obj_count'],x['sect_count']])
+        self.cond_sect=filter(lambda x: x['mat_type']==False,self.list_bounds)
+        self.diel_sect=filter(lambda x: x['mat_type']==True ,self.list_bounds)
         self.iflg=conf.iflg
         self.nc,self.nd,self.nd_C,self.nd_L=0,0,0,0
         for bound in self.list_bounds:
@@ -381,12 +383,38 @@ class Smn(object):
         if c!=0.0:
             return 2*(c*(atan(a1/c)-atan(a2/c))-dn)+a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)
         return a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)-2*dn
-    def SmnC(self):
-        pass
-    def SmnL(self):
-        pass
-    def Smn(self):
+    
+    # matrix S00 filling
+    def calcS00(self):
         self.matrix_S00=numpy.zeros((self.nc,self.nc))
+        m=0
+        for bound_m in self.cond_sect:
+            section_m = bound_m['section']
+            len_bound_m=bound_m['n_subint']
+            for i in xrange(len_bound_m):
+                subsection_i=section_m.getSubinterval(i,len_bound_m)
+                xm,ym = subsection_i.center.x,subsection_i.center.y
+                n=0
+                for bound_n in self.cond_sect:
+                    section_n = bound_n['section']
+                    sinn,cosn=section_n.sint,section_n.cost
+                    len_bound_n=bound_n['n_subint']
+                    for j in xrange(len_bound_n):
+                        subsection_j=section_n.getSubinterval(j,len_bound_n)
+                        dn2 = subsection_j.len/2
+                        xn,yn=subsection_j.center.x,subsection_j.center.y
+                        dx = xm - xn
+                        a2=dx*sinn-(ym-yn)*cosn
+                        b2=dx*cosn+(ym-yn)*sinn
+                        self.matrix_S00[m, n] = -self.F1(a2, b2, dn2)
+                        if self.iflg:
+                            a1= dx*sinn+(ym+yn)*cosn
+                            b1= dx*cosn-(ym+yn)*sinn
+                            self.matrix_S00[m, n] += self.F1(a1, b1, dn2)
+                        n+=1
+                m+=1
+
+    def Smn(self):
         if self.isCalcC:
             self.matrix_S01_C=numpy.zeros((self.nc,self.nd_C))
             self.matrix_S10_C=numpy.zeros((self.nd_C,self.nc))
@@ -395,11 +423,6 @@ class Smn(object):
             self.matrix_S01_L=numpy.zeros((self.nc,self.nd_L))
             self.matrix_S10_L=numpy.zeros((self.nd_L,self.nc))
             self.matrix_S11_L=numpy.zeros((self.nd_L,self.nd_L))
-        cond_sect=filter(lambda x: x['mat_type']==False,self.list_bounds)
-        diel_sect=filter(lambda x: x['mat_type']==False,self.list_bounds)
-        for bound_m in self.list_bounds:
-            for bound_n in self.list_bounds:
-                pass
 
 
 # TODO: Refactoring
@@ -510,14 +533,14 @@ class Smn(object):
 class RLGC(Smn):
     def calcC(self):
         self.isCalcC=True
-        self.calcAll()
+        self._calcLC_()
     def calcL(self):
         self.isCalcL=True
-        self.calcAll()
+        self._calcLC_()
     def calcLC(self):
         self.isCalcC,self.isCalcL=True,True
-        self.calcAll()
-    def calcAll(self):
+        self._calcLC_()
+    def _calcLC_(self):
         cond_sect=filter(lambda x: x['mat_type']==False,self.list_bounds)
         n_cond=len(set(map(lambda x: x['obj_count'],cond_sect)))
         self.SmnAny2D()

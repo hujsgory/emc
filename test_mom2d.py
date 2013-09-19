@@ -62,6 +62,13 @@ class Test_Smn(unittest.TestCase):
     def test_SmnOrtho(self):
         self.smn.SmnOrtho()
         self.assertTrue((abs(self.smn.matrix_S-[[3.52549,0.78204],[-0.33587,9.42478]])<1e-5).all())
+    def test_calcS00(self):
+        for bound in self.conf:
+            bound['n_subint']=3
+        self.smn=Smn(self.conf)
+        self.smn.calcS00()
+        err=abs(self.smn.matrix_S00-read_matrix('_mom2d_RLGC_CalcS00.txt'))
+        self.assertTrue((err<1e-5).all())
 
 class Test_mom2d_Conf(unittest.TestCase):
     def setUp(self):
