@@ -413,16 +413,24 @@ class Smn(object):
                             self.matrix_S00[m, n] += self.F1(a1, b1, dn2)
                         n+=1
                 m+=1
-
-    def Smn(self):
+    def calcS01(self):
         if self.isCalcC:
             self.matrix_S01_C=numpy.zeros((self.nc,self.nd_C))
-            self.matrix_S10_C=numpy.zeros((self.nd_C,self.nc))
-            self.matrix_S11_C=numpy.zeros((self.nd_C,self.nd_C))
         if self.isCalcL:
             self.matrix_S01_L=numpy.zeros((self.nc,self.nd_L))
+    def calcS10(self):
+        if self.isCalcC:
+            self.matrix_S10_C=numpy.zeros((self.nd_C,self.nc))
+        if self.isCalcL:
             self.matrix_S10_L=numpy.zeros((self.nd_L,self.nc))
+    def calcS11(self):
+        if self.isCalcC:
+            self.matrix_S11_C=numpy.zeros((self.nd_C,self.nd_C))
+        if self.isCalcL:
             self.matrix_S11_L=numpy.zeros((self.nd_L,self.nd_L))
+
+    def Smn(self):
+        pass
 
 
 # TODO: Refactoring

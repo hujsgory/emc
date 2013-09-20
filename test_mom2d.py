@@ -69,6 +69,30 @@ class Test_Smn(unittest.TestCase):
         self.smn.calcS00()
         err=abs(self.smn.matrix_S00-read_matrix('_mom2d_RLGC_CalcS00.txt'))
         self.assertTrue((err<1e-5).all())
+    def test_calcS01(self):
+        for bound in self.conf:
+            bound['n_subint']=3
+        self.smn=Smn(self.conf)
+        self.smn.isCalcC=True
+        self.smn.calcS01()
+        err=abs(self.smn.matrix_S01_C-read_matrix('_mom2d_RLGC_CalcS01.txt'))
+        self.assertTrue((err<1e-5).all())
+    def test_calcS10(self):
+        for bound in self.conf:
+            bound['n_subint']=3
+        self.smn=Smn(self.conf)
+        self.smn.isCalcC=True
+        self.smn.calcS10()
+        err=abs(self.smn.matrix_S10_C-read_matrix('_mom2d_RLGC_CalcS10.txt'))
+        self.assertTrue((err<1e-5).all())
+    def test_calcS11(self):
+        for bound in self.conf:
+            bound['n_subint']=3
+        self.smn=Smn(self.conf)
+        self.smn.isCalcC=True
+        self.smn.calcS11()
+        err=abs(self.smn.matrix_S11_C-read_matrix('_mom2d_RLGC_CalcS11.txt'))
+        self.assertTrue((err<1e-5).all())                
 
 class Test_mom2d_Conf(unittest.TestCase):
     def setUp(self):
