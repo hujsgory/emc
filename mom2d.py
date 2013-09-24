@@ -323,8 +323,8 @@ class Smn(object):
         if type(conf) is not Conf:
             raise TypeError
         self.list_bounds=sorted(conf.list_bounds,key=lambda x: [x['mat_type'],x['obj_count'],x['sect_count']])
-        self.cond_sect=filter(lambda x: x['mat_type']==False,self.list_bounds)
-        self.diel_sect=filter(lambda x: x['mat_type']==True ,self.list_bounds)
+        self.list_cond=filter(lambda x: x['mat_type']==False,self.list_bounds)
+        self.list_diel=filter(lambda x: x['mat_type']==True ,self.list_bounds)
         self.iflg=conf.iflg
         self.nc,self.nd,self.nd_C,self.nd_L=0,0,0,0
         for bound in self.list_bounds:
@@ -388,14 +388,14 @@ class Smn(object):
     def calcS00(self):
         self.matrix_S00=numpy.zeros((self.nc,self.nc))
         m=0
-        for bound_m in self.cond_sect:
+        for bound_m in self.list_cond:
             section_m = bound_m['section']
             len_bound_m=bound_m['n_subint']
             for i in xrange(len_bound_m):
                 subsection_i=section_m.getSubinterval(i,len_bound_m)
                 xm,ym = subsection_i.center.x,subsection_i.center.y
                 n=0
-                for bound_n in self.cond_sect:
+                for bound_n in self.list_cond:
                     section_n = bound_n['section']
                     sinn,cosn=section_n.sint,section_n.cost
                     len_bound_n=bound_n['n_subint']

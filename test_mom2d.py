@@ -94,7 +94,7 @@ class Test_Smn(unittest.TestCase):
         err=abs(self.smn.matrix_S11_C-read_matrix('_mom2d_RLGC_CalcS11.txt'))
         self.assertTrue((err<1e-5).all())                
 
-class Test_mom2d_Conf(unittest.TestCase):
+class Test_Conf(unittest.TestCase):
     def setUp(self):
         self.c1=Coord(0.0,0.0)
         self.c5=Coord(1.0,1.0)
@@ -199,14 +199,14 @@ class Test_Board2(unittest.TestCase):
         er1,er2=4.3,1.0
         td1,td2=0.0,0.0
         mu1,mu2=1.0,1.00000037
-        answ=[{'section':Section(Coord(x1,y1),Coord(x2,y1)),'mat_type':False,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1},'obj_count':1,'sect_count':0},\
+        answ1=[{'section':Section(Coord(x1,y1),Coord(x2,y1)),'mat_type':False,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1},'obj_count':1,'sect_count':0},\
               {'section':Section(Coord(x2,y1),Coord(x2,y2)),'mat_type':False,'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':1},\
               {'section':Section(Coord(x1,y2),Coord(x1,y1)),'mat_type':False,'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':2},\
-              {'section':Section(Coord(x2,y2),Coord(x1,y2)),'mat_type':False,'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':3},\
-              {'section':Section(Coord(x0,y1),Coord(x1,y1)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':2,'sect_count':0},\
-              {'section':Section(Coord(x2,y1),Coord(x3,y1)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':2,'sect_count':1},\
-              ]
-        self.assertTrue(self.board.conf.list_bounds==answ)
+              {'section':Section(Coord(x2,y2),Coord(x1,y2)),'mat_type':False,'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':3}]
+        answ2=[{'section':Section(Coord(x0,y1),Coord(x1,y1)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':2,'sect_count':0},\
+              {'section':Section(Coord(x2,y1),Coord(x3,y1)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':2,'sect_count':1}]
+        self.assertTrue(self.board.conf.list_cond==answ1)
+        self.assertTrue(self.board.conf.list_diel==answ2)
     def test_2(self):
         self.board.cover(31e-6,4.8)
         self.board.board2conf()
@@ -222,6 +222,6 @@ class Test_Board2(unittest.TestCase):
               {'section':Section(Coord(x2,y3),Coord(x2,y2)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':3},\
               {'section':Section(Coord(x2,y2),Coord(x3,y2)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':4},\
               ]
-        self.assertTrue(self.board.conf.list_bounds[6:]==answ)
+        self.assertTrue(self.board.conf.list_diel[2:]==answ)
 
 unittest.main()
