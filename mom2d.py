@@ -67,63 +67,63 @@ class Section(object):
 
 class Conf(object):
     def __init__(self):
-        self.list_bounds=list()
+        self.list_cond=list()
+        self.list_diel=list()
         self.iflg=True
         self.mat_type=False     #mat_type: False - Conductor-Dielectric bound_m, True - Dielectric-Dielectric bound_m
         self.obj_count=0
         self.sect_count=0
         self.mat_param=dict()
-    def __iter__(self):
-        return self.list_bounds.__iter__()
-    def intersection(self,sect2):
-        for bound_m in self.list_bounds:
-            sect1=bound_m['section']
-            # Coeficients of Ax+By+D=0
-            a1=-sect1.dy;
-            b1= sect1.dx;
-            d1=-(a1*sect1.beg.x+b1*sect1.beg.y);
-            a2=-sect2.dy;
-            b2= sect2.dx;
-            d2=-(a2*sect2.beg.x+b2*sect2.beg.y);
+    def intersection(self,sect1,sect2):
+        # Coeficients of Ax+By+D=0
+        a1=-sect1.dy;
+        b1= sect1.dx;
+        d1=-(a1*sect1.beg.x+b1*sect1.beg.y);
+        a2=-sect2.dy;
+        b2= sect2.dx;
+        d2=-(a2*sect2.beg.x+b2*sect2.beg.y);
 
-            # Calculate halfplane of sections ends
-            seg1_line2_start = a2*sect1.beg.x + b2*sect1.beg.y + d2;
-            seg1_line2_end   = a2*sect1.end.x + b2*sect1.end.y + d2;
-            seg2_line1_start = a1*sect2.beg.x + b1*sect2.beg.y + d1;
-            seg2_line1_end   = a1*sect2.end.x + b1*sect2.end.y + d1;
-            
-            h1=seg1_line2_start*seg1_line2_end;
-            h2=seg2_line1_start*seg2_line1_end;
+        # Calculate halfplane of sections ends
+        seg1_line2_start = a2*sect1.beg.x + b2*sect1.beg.y + d2;
+        seg1_line2_end   = a2*sect1.end.x + b2*sect1.end.y + d2;
+        seg2_line1_start = a1*sect2.beg.x + b1*sect2.beg.y + d1;
+        seg2_line1_end   = a1*sect2.end.x + b1*sect2.end.y + d1;
 
-            # Ends located in the different halfplane
-            if h1<0. and h2<0.: return True
-            # Collinear (both ends of segments lie on one line)
-            if atan2(a1,b1)==atan2(a2,b2) and d1==d2:
-                #   |------|======|------|
-                # fmin1  fmin2  fmax1  fmax2
-                fmin1=min(sect1.beg.x,sect1.end.x)
-                fmin2=min(sect2.beg.x,sect2.end.x)
-                fmax1=max(sect1.beg.x,sect1.end.x)
-                fmax2=max(sect2.beg.x,sect2.end.x)
-                if fmin1<fmax2 and fmin2<fmax1:
-                    return True
-                fmin1=min(sect1.beg.y,sect1.end.y)
-                fmin2=min(sect2.beg.y,sect2.end.y)
-                fmax1=max(sect1.beg.y,sect1.end.y)
-                fmax2=max(sect2.beg.y,sect2.end.y)
-                if fmin1<fmax2 and fmin2<fmax1:
-                    return True
+        h1=seg1_line2_start*seg1_line2_end;
+        h2=seg2_line1_start*seg2_line1_end;
+
+        # Ends located in the different halfplane
+        if h1<0. and h2<0.: return True
+        # Collinear (both ends of segments lie on one line)
+        if atan2(a1,b1)==atan2(a2,b2) and d1==d2:
+            #   |------|======|------|
+            # fmin1  fmin2  fmax1  fmax2
+            fmin1=min(sect1.beg.x,sect1.end.x)
+            fmin2=min(sect2.beg.x,sect2.end.x)
+            fmax1=max(sect1.beg.x,sect1.end.x)
+            fmax2=max(sect2.beg.x,sect2.end.x)
+            if fmin1<fmax2 and fmin2<fmax1:
+                return True
+            fmin1=min(sect1.beg.y,sect1.end.y)
+            fmin2=min(sect2.beg.y,sect2.end.y)
+            fmax1=max(sect1.beg.y,sect1.end.y)
+            fmax2=max(sect2.beg.y,sect2.end.y)
+            if fmin1<fmax2 and fmin2<fmax1:
+                return True
         return False
-
+    def check_intersection(self,section):
+        return reduce(lambda r,bound: r or self.intersection(bound['section'],section),self.list_cond,False) or \
+               reduce(lambda r,bound: r or self.intersection(bound['section'],section),self.list_diel,False)
+            
     # n_subint: number of bound_m's subintervals
     def add(self,section,n_subint=1):
         if type(section) is Section and type(n_subint) is int:
-            if self.intersection(section): raise ValueError
-            erp = self.mat_param.get('erp', 1.0)
-            erm = self.mat_param.get('erm', 1.0)
-            if self.mat_type and erp==erm:
-                raise ValueError
-            self.list_bounds.append({'section':section,'mat_type':self.mat_type,'n_subint':n_subint,'mat_param':self.mat_param, 'obj_count': self.obj_count,'sect_count': self.sect_count})
+            if self.check_intersection(section): raise ValueError
+            bound={'section':section,'n_subint':n_subint,'mat_param':self.mat_param, 'obj_count': self.obj_count,'sect_count': self.sect_count}
+            if self.mat_type:
+                self.list_diel.append(bound)
+            else:
+                self.list_cond.append(bound)
             self.sect_count+=1
         else: raise TypeError
     # mat_param: erp - relative permittivity on right side of section, erm - on left side; tdp,tdm - tangent dielectric loss; 
@@ -322,9 +322,8 @@ class Smn(object):
     def __init__(self,conf):
         if type(conf) is not Conf:
             raise TypeError
-        self.list_bounds=sorted(conf.list_bounds,key=lambda x: [x['mat_type'],x['obj_count'],x['sect_count']])
-        self.list_cond=filter(lambda x: x['mat_type']==False,self.list_bounds)
-        self.list_diel=filter(lambda x: x['mat_type']==True ,self.list_bounds)
+        self.list_cond=conf.list_cond
+        self.list_diel=conf.list_diel
         self.iflg=conf.iflg
         self.nc,self.nd,self.nd_C,self.nd_L=0,0,0,0
         for bound in self.list_bounds:
@@ -549,14 +548,13 @@ class RLGC(Smn):
         self.isCalcC,self.isCalcL=True,True
         self._calcLC_()
     def _calcLC_(self):
-        cond_sect=filter(lambda x: x['mat_type']==False,self.list_bounds)
-        n_cond=len(set(map(lambda x: x['obj_count'],cond_sect)))
+        n_cond=len(set(map(lambda x: x['obj_count'],self.list_cond)))
         self.SmnAny2D()
 
         # Excitation vector filling
         exc_v = numpy.zeros((self.m_size,n_cond))
-        beg,n,old_cond=0,0,cond_sect[0]['obj_count']
-        for bound in cond_sect:
+        beg,n,old_cond=0,0,self.list_cond[0]['obj_count']
+        for bound in self.list_cond:
             if old_cond!=bound['obj_count']: n+=1
             old_cond=bound['obj_count']
             end=beg+bound['n_subint']
@@ -577,8 +575,8 @@ class RLGC(Smn):
             self.mL = numpy.zeros((n_cond,n_cond))
         # Matrix C and L calculating
         
-        beg,m,old_cond=0,0,cond_sect[0]['obj_count']
-        for bound in cond_sect:
+        beg,m,old_cond=0,0,self.list_cond[0]['obj_count']
+        for bound in self.list_cond:
             if old_cond!=bound['obj_count']: m+=1
             old_cond=bound['obj_count']
             end=beg+bound['n_subint']

@@ -199,12 +199,12 @@ class Test_Board2(unittest.TestCase):
         er1,er2=4.3,1.0
         td1,td2=0.0,0.0
         mu1,mu2=1.0,1.00000037
-        answ1=[{'section':Section(Coord(x1,y1),Coord(x2,y1)),'mat_type':False,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1},'obj_count':1,'sect_count':0},\
-              {'section':Section(Coord(x2,y1),Coord(x2,y2)),'mat_type':False,'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':1},\
-              {'section':Section(Coord(x1,y2),Coord(x1,y1)),'mat_type':False,'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':2},\
-              {'section':Section(Coord(x2,y2),Coord(x1,y2)),'mat_type':False,'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':3}]
-        answ2=[{'section':Section(Coord(x0,y1),Coord(x1,y1)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':2,'sect_count':0},\
-              {'section':Section(Coord(x2,y1),Coord(x3,y1)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':2,'sect_count':1}]
+        answ1=[{'section':Section(Coord(x1,y1),Coord(x2,y1)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1},'obj_count':1,'sect_count':0},\
+               {'section':Section(Coord(x2,y1),Coord(x2,y2)),'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':1},\
+               {'section':Section(Coord(x1,y2),Coord(x1,y1)),'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':2},\
+               {'section':Section(Coord(x2,y2),Coord(x1,y2)),'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':3}]
+        answ2=[{'section':Section(Coord(x0,y1),Coord(x1,y1)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':2,'sect_count':0},\
+               {'section':Section(Coord(x2,y1),Coord(x3,y1)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':2,'sect_count':1}]
         self.assertTrue(self.board.conf.list_cond==answ1)
         self.assertTrue(self.board.conf.list_diel==answ2)
     def test_2(self):
@@ -216,11 +216,11 @@ class Test_Board2(unittest.TestCase):
         x0,x1,x2,x3=0.0,769e-6,1232e-6,2001e-6
         y2,y3=1021e-6,1039e-6
         answ=[\
-              {'section':Section(Coord(x0,y2),Coord(x1,y2)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':0},\
-              {'section':Section(Coord(x1,y2),Coord(x1,y3)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':1},\
-              {'section':Section(Coord(x1,y3),Coord(x2,y3)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':2},\
-              {'section':Section(Coord(x2,y3),Coord(x2,y2)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':3},\
-              {'section':Section(Coord(x2,y2),Coord(x3,y2)),'mat_type':True ,'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':4},\
+              {'section':Section(Coord(x0,y2),Coord(x1,y2)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':0},\
+              {'section':Section(Coord(x1,y2),Coord(x1,y3)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':1},\
+              {'section':Section(Coord(x1,y3),Coord(x2,y3)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':2},\
+              {'section':Section(Coord(x2,y3),Coord(x2,y2)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':3},\
+              {'section':Section(Coord(x2,y2),Coord(x3,y2)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':4},\
               ]
         self.assertTrue(self.board.conf.list_diel[2:]==answ)
 
