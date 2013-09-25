@@ -54,6 +54,7 @@ class Test_Smn(unittest.TestCase):
         self.conf.cond(erp=2.0)
         self.conf.add(self.s2)
         self.smn=Smn(self.conf)
+    @unittest.skip('Removed')
     def test_SmnAny2D(self):
         self.smn.SmnAny2D()
         self.assertTrue((abs(self.smn.matrix_S-[[3.84183,1.05704],[0.12258,0]])<1e-5).all())
@@ -122,6 +123,7 @@ class Test_Conf(unittest.TestCase):
         self.conf.add(Section(self.c6,self.c5))
         self.assertRaises(ValueError,self.conf.add,Section(self.c1,self.c7))
 
+@unittest.skip('Refactoring')
 class Test_RLGC(unittest.TestCase):
     def setUp(self):
         self.conf=Conf()

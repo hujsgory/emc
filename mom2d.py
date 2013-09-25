@@ -74,6 +74,8 @@ class Conf(object):
         self.obj_count=0
         self.sect_count=0
         self.mat_param=dict()
+    def __iter__(self):
+        return 
     def intersection(self,sect1,sect2):
         # Coeficients of Ax+By+D=0
         a1=-sect1.dy;
@@ -325,19 +327,15 @@ class Smn(object):
         self.list_cond=conf.list_cond
         self.list_diel=conf.list_diel
         self.iflg=conf.iflg
-        self.nc,self.nd,self.nd_C,self.nd_L=0,0,0,0
-        for bound in self.list_bounds:
-            if bound['mat_type']:
-                if bound['mat_param'].get('erp',1.0)!=bound['mat_param'].get('erm',1.0):
-                    self.nd_C+=bound['n_subint']
-                if bound['mat_param'].get('mup',1.0)!=bound['mat_param'].get('mum',1.0):
-                    self.nd_L+=bound['n_subint']
-                self.nd+=bound['n_subint']
-            else:
-                self.nc+=bound['n_subint']
-        self.m_size=self.nc+self.nd
+        self.nc,self.nd_C,self.nd_L=0,0,0
+        for bound in self.list_diel:
+            if bound['mat_param'].get('erp',1.0)!=bound['mat_param'].get('erm',1.0):
+                self.nd_C+=bound['n_subint']
+            if bound['mat_param'].get('mup',1.0)!=bound['mat_param'].get('mum',1.0):
+                self.nd_L+=bound['n_subint']
+
+        self.nc=reduce(lambda r,x: r+x['n_subint'],self.list_cond,0)
         if not self.iflg :
-            self.m_size+=1 # add one row and one column
             self.nd_C+=1
             self.nd_L+=1
         self.isCalcC,self.isCalcL=False,False
@@ -431,7 +429,7 @@ class Smn(object):
     def Smn(self):
         pass
 
-
+'''
 # TODO: Refactoring
     def SmnAny2D(self):
         self.matrix_S=numpy.zeros((self.m_size,self.m_size))
@@ -535,8 +533,8 @@ class Smn(object):
                     else: # clear rest of matrix cells
                         self.matrix_S[n,sz],self.matrix_S[sz,n] = 0.0,0.0
                     n+=1
-
-
+'''
+'''
 class RLGC(Smn):
     def calcC(self):
         self.isCalcC=True
@@ -593,3 +591,4 @@ class RLGC(Smn):
         if self.isCalcL: self.mL=la.inv(self.mL)/(V0*V0)
         for i in xrange(self.nc,self.m_size):
             self.matrix_S[i,i]=0.0 
+'''
