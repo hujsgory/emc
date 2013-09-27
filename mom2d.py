@@ -337,13 +337,6 @@ class Smn(object):
         self.list_cond=conf.list_cond
         self.list_diel=conf.list_diel
         self.iflg=conf.iflg
-        self.nc,self.nd_C,self.nd_L=0,0,0
-        for bound in self.list_diel:
-            if bound['mat_param'].get('erp',1.0)!=bound['mat_param'].get('erm',1.0):
-                self.nd_C+=bound['n_subint']
-            if bound['mat_param'].get('mup',1.0)!=bound['mat_param'].get('mum',1.0):
-                self.nd_L+=bound['n_subint']
-
         self.nc=reduce(lambda r,x: r+x['n_subint'],self.list_cond,0)
         if not self.iflg :
             self.nd_C+=1
@@ -391,10 +384,11 @@ class Smn(object):
             return 2*(c*(atan(a1/c)-atan(a2/c))-dn)+a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)
         return a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)-2*dn
     
-    def calcS0(self,block_S,list1,list2):
+    def calcS(self,block_S,list1,list2,bDiel):
         m=0
         for bound_m in list1:
             section_m = bound_m['section']
+            sinm,cosm=section_m.sint,section_m.cost
             len_bound_m=bound_m['n_subint']
             for i in xrange(len_bound_m):
                 subsection_i=section_m.getSubinterval(i,len_bound_m)
@@ -411,50 +405,74 @@ class Smn(object):
                         dx = xm - xn
                         a2=dx*sinn-(ym-yn)*cosn
                         b2=dx*cosn+(ym-yn)*sinn
-                        block_S[m, n] = -self.F1(a2, b2, dn2)
-                        if self.iflg:
-                            a1= dx*sinn+(ym+yn)*cosn
-                            b1= dx*cosn-(ym+yn)*sinn
-                            block_S[m, n] += self.F1(a1, b1, dn2)
+                        a1= dx*sinn+(ym+yn)*cosn
+                        b1= dx*cosn-(ym+yn)*sinn
+                        if not bDiel:
+                            block_S[m, n] = -self.F1(a2, b2, dn2)
+                            if self.iflg:
+                                block_S[m, n] += self.F1(a1, b1, dn2)
+                        else:
+                            f2= self.F2(a2, b2, dn2)
+                            f3= self.F3(a2, b2, dn2)
+                            Imn=        ((dx   -b2*cosn)*f2-cosn*f3)*sinm - ((ym-yn-b2*sinn)*f2-sinn*f3)*cosm 
+                            if self.iflg:
+                                f2= self.F2(a1, b1, dn2)
+                                f3= self.F3(a1, b1, dn2)
+                                Imn += -((dx   -b1*cosn)*f2-cosn*f3)*sinm + ((ym+yn+b1*sinn)*f2-sinn*f3)*cosm 
+                            block_S[m, n]= Imn
                         n+=1
                 m+=1
-    def calcS1(self,block_S,list1,list2):
-        m=0
-        for bound_m in list1:
-            section_m = bound_m['section']
-            sinm,cosm=section_m.sint,section_m.cost
-            len_bound_m=bound_m['n_subint']
-            for  i in xrange(len_bound_m):
-                for bound_n in list2:
-                    section_n = bound_n['section']
-                    sinn,cosn=section_n.sint,section_n.cost
-                    len_bound_n=bound_n['n_subint']
-                    for j in xrange(len_bound_n):
-                        pass
+    @property
+    def list_diel_C(self):
+        return filter(lambda x: x['mat_param'].get('erp',1.0)!=x['mat_param'].get('erm',1.0),self.list_diel)
+    @property
+    def list_diel_L(self):
+        return filter(lambda x: x['mat_param'].get('mup',1.0)!=x['mat_param'].get('mum',1.0),self.list_diel)
+    @property
+    def nd_C(self):
+        return reduce(lambda r,x: r+x['n_subint'],self.list_diel_C,0)
+    @property
+    def nd_L(self):
+        return reduce(lambda r,x: r+x['n_subint'],self.list_diel_L,0)
     # matrix S00 filling
     def calcS00(self):
         self.matrix_S00=numpy.zeros((self.nc,self.nc))
-        self.calcS0(self.matrix_S00,self.list_cond,self.list_cond)
+        self.calcS(self.matrix_S00,self.list_cond,self.list_cond,False)
+    # matrix S01 filling
     def calcS01(self):
         if self.isCalcC:
             self.matrix_S01_C=numpy.zeros((self.nc,self.nd_C))
-            self.calcS0(self.matrix_S01_C,self.list_cond,filter(lambda x: x['mat_param'].get('erp',1.0)!=x['mat_param'].get('erm',1.0),self.list_diel))
+            self.calcS(self.matrix_S01_C,self.list_cond,self.list_diel_C,False)
         if self.isCalcL:
             self.matrix_S01_L=numpy.zeros((self.nc,self.nd_L))
-            self.calcS0(self.matrix_S01_L,self.list_cond,filter(lambda x: x['mat_param'].get('mup',1.0)!=x['mat_param'].get('mum',1.0),self.list_diel))
-# FIXME: filling last column if not infinite ground
+            self.calcS(self.matrix_S01_L,self.list_cond,self.list_diel_L,False)
+# FIXME: filling last column if infinite ground is not existence
         if not self.iflg:
             pass
+    # matrix S10 filling
     def calcS10(self):
         if self.isCalcC:
             self.matrix_S10_C=numpy.zeros((self.nd_C,self.nc))
+            self.calcS(self.matrix_S10_C,self.list_diel_C,self.list_cond,True)
         if self.isCalcL:
             self.matrix_S10_L=numpy.zeros((self.nd_L,self.nc))
+            self.calcS(self.matrix_S10_L,self.list_diel_L,self.list_cond,True)
+# FIXME: filling last column if infinite ground is not existence
+        if not self.iflg:
+            pass
+    # matrix S11 filling
+#FIXME: Need to adding er_plus and/or mu_plus to diagonal of S11 in moment, when LC-parameters is calculated
     def calcS11(self):
         if self.isCalcC:
-            self.matrix_S11_C=numpy.zeros((self.nd_C,self.nd_C))
+            nd=self.nd_C
+            list_diel=self.list_diel_C
+            self.matrix_S11_C=numpy.zeros((nd,nd))
+            self.calcS(self.matrix_S11_C,list_diel,list_diel,True)
         if self.isCalcL:
-            self.matrix_S11_L=numpy.zeros((self.nd_L,self.nd_L))
+            nd=self.nd_L
+            list_diel=self.list_diel_L
+            self.matrix_S11_L=numpy.zeros((nd,nd))
+            self.calcS(self.matrix_S11_L,list_diel,list_diel,True)
 
     def Smn(self):
         pass
