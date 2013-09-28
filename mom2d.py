@@ -474,98 +474,8 @@ class Smn(object):
             self.matrix_S11_L=numpy.zeros((nd,nd))
             self.calcS(self.matrix_S11_L,list_diel,list_diel,True)
 
-    def Smn(self):
-        pass
 
 '''
-# TODO: Refactoring
-    def SmnAny2D(self):
-        self.matrix_S=numpy.zeros((self.m_size,self.m_size))
-        self.diag_S11_C=numpy.zeros((self.nd))
-        self.diag_S11_L=numpy.zeros((self.nd))
-        m = 0
-        for bound_m in self.list_bounds:
-            section_m=bound_m['section']
-            n_subint_m=bound_m['n_subint']
-            # check if conductors was processed
-            bDiel = bound_m['mat_type']
-            # set parameters equal for all subsections
-            sinm,cosm=section_m.sint,section_m.cost
-            dxm,dym=section_m.dx/n_subint_m, section_m.dy/n_subint_m
-            first_subsection=section_m.getSubinterval(0,n_subint_m)
-            # xm, ym - centers of subinterval
-            xm,ym = first_subsection.center.x, first_subsection.center.y
-            er_plus,mu_plus=0.0,0.0
-            erp = bound_m['mat_param'].get('erp', 1.0)
-            erm = bound_m['mat_param'].get('erm', 1.0)
-            mup = bound_m['mat_param'].get('mup', 1.0)
-            mum = bound_m['mat_param'].get('mum', 1.00001)
-# FIXME: Parameters er,td and mu need to make optional
-            if erp==erm or mup==mum:
-                raise ValueError('Dielectric properties of right side is equal to value of left side')
-            er_plus=(erp+erm)*pi/(erp-erm)
-            mu_plus=(mum+mup)*pi/(mum-mup)
-            # BEGIN cycle through subintervals
-            for subint_m in xrange(n_subint_m):
-                # DO JUST THE SAME CALCULATIONS FOR INTEGRAL INTERVALS
-                n = 0
-                for bound_n in self.list_bounds:
-                    section_n = bound_n['section'] # BEGIN cycle through integral intervals
-                    n_subint_n=bound_n['n_subint']
-                    # set parameters equal for all subsections
-                    sinn,cosn= section_n.sint, section_n.cost
-                    dxn,dyn=section_n.dx/n_subint_n, section_n.dy/n_subint_n
-                    dn = section_n.len/n_subint_n
-                    dn2 = dn/2.0
-                    a1,b1=0.0,0.0
-                    first_subsection_i=section_n.getSubinterval(0,n_subint_n)
-                    # xn, yn - centers of subinterval
-                    xn,yn = first_subsection_i.center.x, first_subsection_i.center.y
-                    dx = xm - xn
-                    a2 = dx*sinn-(ym-yn)*cosn
-                    b2 = dx*cosn+(ym-yn)*sinn
-                    if self.iflg:
-                        a1= dx*sinn+(ym+yn)*cosn
-                        b1= dx*cosn-(ym+yn)*sinn
-                    # BEGIN cycle through integral subintervals
-                    for subint_n in xrange(n_subint_n):
-                        if not bDiel:
-                            # CALCULATION WITH CONDUCTORS
-                            self.matrix_S[m, n] = -self.F1(a2, b2, dn2)
-                            if self.iflg:
-                                self.matrix_S[m, n] += self.F1(a1, b1, dn2)
-                                b1 -= dn
-                        else :
-                            # CALCULATION WITH DIELECTRICS
-                            # Imn= sinm*(Ix-Ix1)-cosm*(Iy-Iy1)
-                            f2= self.F2(a2, b2, dn2)
-                            f3= self.F3(a2, b2, dn2)
-                            Imn=        ((dx   -b2*cosn)*f2-cosn*f3)*sinm - ((ym-yn-b2*sinn)*f2-sinn*f3)*cosm 
-                            if self.iflg:
-                                f2= self.F2(a1, b1, dn2)
-                                f3= self.F3(a1, b1, dn2)
-                                Imn += -((dx   -b1*cosn)*f2-cosn*f3)*sinm + ((ym+yn+b1*sinn)*f2-sinn*f3)*cosm 
-                                b1-= dn
-                            if m==n:
-                                self.diag_S11_C[n-self.nc]=Imn + er_plus
-                                self.diag_S11_L[n-self.nc]=Imn + mu_plus
-# HACK: This code is meaningless
-                            #if Imn == 0.0:
-                            #    self.matrix_S[m, n] = -1.0
-                            else:
-                                self.matrix_S[m, n]= Imn
-                        b2-= dn
-                        dx-= dxn
-                        n+=1 # increment matrix index
-                        xn += dxn # calc center of next integral subsection
-                        yn += dyn
-                     # END cycle through integral subintervals
-                 # END cycle through integral intervals
-                m+=1 # increment matrix index
-                xm += dxm # calc center of next subsection
-                ym += dym
-             # END cycle through subintervals
-         # END cycle through intervals
 # FIXME: fill additional row an column for calculate L
         if not self.iflg : # fill in additional row and column
             sz = m_size-1
@@ -582,19 +492,24 @@ class Smn(object):
                         self.matrix_S[n,sz],self.matrix_S[sz,n] = 0.0,0.0
                     n+=1
 '''
-'''
-class RLGC(Smn):
+
+class RLGC():
+    def __init__(self,conf):
+        self.smn=Smn(conf)
     def calcC(self):
-        self.isCalcC=True
+        self.smn.isCalcC=True
         self._calcLC_()
     def calcL(self):
-        self.isCalcL=True
+        self.smn.isCalcL=True
         self._calcLC_()
     def calcLC(self):
-        self.isCalcC,self.isCalcL=True,True
+        self.smn.isCalcC,self.smn.isCalcL=True,True
         self._calcLC_()
+
     def _calcLC_(self):
-        n_cond=len(set(map(lambda x: x['obj_count'],self.list_cond)))
+        self.n_cond=len(set(map(lambda x: x['obj_count'],self.smn.list_cond)))
+
+'''
         self.SmnAny2D()
 
         # Excitation vector filling
