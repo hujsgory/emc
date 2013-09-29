@@ -54,15 +54,6 @@ class Test_Smn(unittest.TestCase):
         self.conf.cond(erp=2.0)
         self.conf.add(self.s2)
         self.smn=Smn(self.conf)
-    @unittest.skip('Removed')
-    def test_SmnAny2D(self):
-        self.smn.SmnAny2D()
-        self.assertTrue((abs(self.smn.matrix_S-[[3.84183,1.05704],[0.12258,0]])<1e-5).all())
-        self.assertTrue(abs(self.smn.diag_S11_C[0]-9.42478)<1e-5)
-    @unittest.skip('Removed')
-    def test_SmnOrtho(self):
-        self.smn.SmnOrtho()
-        self.assertTrue((abs(self.smn.matrix_S-[[3.52549,0.78204],[-0.33587,9.42478]])<1e-5).all())
     def test_calcS00(self):
         for bound in self.conf:
             bound['n_subint']=3
@@ -140,28 +131,17 @@ class Test_RLGC(unittest.TestCase):
     def test_calcC1(self):
         self.assertEqual(self.rlgc.n_cond,2,self.rlgc.n_cond)
     def test_calcC2(self):
-        err=abs(numpy.transpose(self.rlgc.matrix_QC[0:9,0:2])-read_matrix('_mom2d_RLGC_CalcC2.txt'))
+        err=abs(numpy.transpose(self.rlgc.matrix_QC[0:9])-read_matrix('_mom2d_RLGC_CalcC2.txt'))
         self.assertTrue((err<2e-15).all())
-    @unittest.skip
-    def test_calcC3(self):
-        err=abs(self.rlgc.smn.matrix_S-read_matrix('_mom2d_RLGC_CalcC3.txt'))
-        self.assertTrue((err<2e-4).all())
-    @unittest.skip
-    def test_calcC4(self):
-        err=abs(self.rlgc.diag_S11_C-read_vector('_mom2d_RLGC_CalcC4.txt'))
-        self.assertTrue((err<2e-4).all())
     def test_calcC5(self):
         err=abs(self.rlgc.mC-read_matrix('_mom2d_RLGC_CalcC5.txt'))
         self.assertTrue((err<1e-15).all())
     def test_calcL1(self):
         err=abs(self.rlgc.mL-read_matrix('_mom2d_RLGC_CalcL1.txt'))
         self.assertTrue((err<1e-12).all())
-    @unittest.skip
-    def test_calcL2(self):
-        err=abs(self.rlgc.diag_S11_L-read_vector('_mom2d_RLGC_CalcL2.txt'))
-        self.assertTrue((err<2e-4).all())
     def test_calcL3(self):
-        err=abs(numpy.transpose(self.rlgc.matrix_QL[0:9,0:2])-read_matrix('_mom2d_RLGC_CalcL3.txt'))
+        #print self.rlgc.matrix_QL
+        err=abs(numpy.transpose(self.rlgc.matrix_QL[0:9])-read_matrix('_mom2d_RLGC_CalcL3.txt'))
         self.assertTrue((err<2e-16).all())
 
 class Test_Board1(unittest.TestCase):
