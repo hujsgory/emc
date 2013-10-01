@@ -4,9 +4,9 @@ from math import *
 import numpy
 import numpy.linalg as la
 
-eps0=8.854187817e-12
-Coef_C = 4*pi*eps0
-V0 = 299792458.0
+eps0=8.854187817e-12 #dielectric constant
+Coef_C = 4*pi*eps0   
+V0 = 299792458.0     #light velocity
 
 class Coord(object):
     def __init__(self,x=0.0,y=0.0):
@@ -70,7 +70,8 @@ class Conf(object):
         self.list_cond=list()
         self.list_diel=list()
         self.iflg=True
-        self.mat_type=False     #mat_type: False - Conductor-Dielectric bound_m, True - Dielectric-Dielectric bound_m
+        self.grounded=False
+        self.mat_type=False     #mat_type: False - Conductor-Dielectric bound, True - Dielectric-Dielectric bound
         self.obj_count=0
         self.sect_count=0
         self.mat_param=dict()
@@ -135,11 +136,21 @@ class Conf(object):
             if self.mat_type:
                 self.list_diel.append(bound)
             else:
+                bound['grounded']=self.grounded
                 self.list_cond.append(bound)
             self.sect_count+=1
         else: raise TypeError
-    # mat_param: erp - relative permittivity on right side of section, erm - on left side; tdp,tdm - tangent dielectric loss; 
+    # mat_param: erp - relative permittivity on right side of section, erm - on left side
+    # tdp,tdm - dielectric loss tangent 
+    # mup,mum - relative magnetic permeability
     def cond(self,**mat_param):
+        self.grounded=False
+        self.mat_param=mat_param
+        self.mat_type=False
+        self.obj_count+=1
+        self.sect_count=0
+    def ground_cond(self,**mat_param):
+        self.grounded=True
         self.mat_param=mat_param
         self.mat_type=False
         self.obj_count+=1
@@ -181,6 +192,7 @@ class Board():
         if len(self.layers)==0:
             raise ValueError('It is necessary to create at least one layer')
         self.layers.append({'height':height,'er':er,'td':td,'mu':mu,'is_cover':True,'cond':list()})
+# FIXME: need to add approximate comparison for float numbers
     def board2conf(self):
         self.conf=Conf()
         # Calculation of structure's right coordinate x
@@ -337,7 +349,7 @@ class Smn(object):
         self.list_cond=conf.list_cond
         self.list_diel=conf.list_diel
         self.iflg=conf.iflg
-        self.nc=reduce(lambda r,x: r+x['n_subint'],self.list_cond,0)
+        self.nc=reduce(lambda r,x: r+x['n_subint'],filter(lambda x: not x['grounded'],self.list_cond),0)
         self.isCalcC,self.isCalcL=False,False
 
     def sumatan(self,a1,a2,c):
@@ -419,6 +431,25 @@ class Smn(object):
                             block_S[m, n]= Imn
                         n+=1
                 m+=1
+
+    # fill in additional row and column if infinite ground is not exist
+    def calcLast(self):
+        if not self.iflg: 
+            lastC=self.nd_C-1
+            lastL=self.nd_L-1
+            n = 0
+            for bound in self.list_cond:
+                section_m=bound['section']
+                n_subint_m=bound['n_subint']
+                for si in xrange(n_subint_m):
+                    subint_len=bound['section'].getSubinterval(i,n_subint_m).len
+                    if isCalcC:
+                        self.matrix_S01_C[n, lastC]=subint_len/self.matrix_S00[n, n]
+                        self.matrix_S10_C[lastC, n]=si_len*bound_m['mat_param'].get('erp', 1.0)
+                    if isCalcL:
+                        self.matrix_S01_L[n, lastL]=subint_len/self.matrix_S00[n, n]
+                        self.matrix_S10_L[lastL, n]=si_len/bound_m['mat_param'].get('mup', 1.0)
+                    n+=1
     @property
     def list_diel_C(self):
         return filter(lambda x: x['mat_param'].get('erp',1.0)!=x['mat_param'].get('erm',1.0),self.list_diel)
@@ -499,6 +530,7 @@ class Smn(object):
         self.calcS01()
         # C
         self.calcS10()
+        self.calcLast()
         if self.isCalcC:
             self.matrix_S10_C=numpy.dot(self.matrix_S10_C,self.matrix_S00)
         if self.isCalcL:
@@ -511,23 +543,8 @@ class Smn(object):
         if self.isCalcL:
             self.matrix_S11_L-=numpy.dot(self.matrix_S10_L,self.matrix_S01_L)
             self.matrix_S11_L=la.inv(self.matrix_S11_L)
-'''
-# FIXME: fill additional row an column for calculate L
-        if not self.iflg : # fill in additional row and column
-            sz = m_size-1
-            n = 0
-            for bound_m in self.list_bounds: # cycle through conductors
-                section_m=bound_m['section']
-                n_subint_m=bound_m['n_subint']
-                for si in xrange(n_subint_m):
-                    if bound_m['mat_type']==False:
-                        si_len = section_m.len/n_subint_m
-                        self.matrix_S[n, sz]=si_len/self.matrix_S[n, n]
-                        self.matrix_S[sz, n]=si_len*bound_m['mat_param'].get('erp', 1.0)
-                    else: # clear rest of matrix cells
-                        self.matrix_S[n,sz],self.matrix_S[sz,n] = 0.0,0.0
-                    n+=1
-'''
+
+
 
 class RLGC():
     def __init__(self,conf):
@@ -550,7 +567,7 @@ class RLGC():
         exc_v0 = numpy.zeros((self.smn.nc,self.n_cond))
         beg,n,old_cond=0,0,self.smn.list_cond[0]['obj_count']
         for bound in self.smn.list_cond:
-            if old_cond!=bound['obj_count']: n+=1
+            if old_cond!=bound['obj_count'] and not bound['grounded']: n+=1
             old_cond=bound['obj_count']
             end=beg+bound['n_subint']
             exc_v0[beg:end,n]=Coef_C
@@ -578,20 +595,19 @@ class RLGC():
         # Matrix C and L calculating
         beg,m,old_cond=0,0,self.smn.list_cond[0]['obj_count']
         for bound in self.smn.list_cond:
-            if old_cond!=bound['obj_count']: m+=1
+            if old_cond!=bound['obj_count'] and not bound['grounded']: m+=1
             old_cond=bound['obj_count']
             end=beg+bound['n_subint']
-# FIXME: It works only for equable segmentation
-# For smart segmentation is necessary to take length of the every subinterval
             subint_len=bound['section'].getSubinterval(n=bound['n_subint']).len
-            if self.smn.isCalcC:
-                self.matrix_QC[beg:end,0:self.n_cond]*=subint_len*bound['mat_param'].get('erp',1.0)
-            if self.smn.isCalcL:
-                self.matrix_QL[beg:end,0:self.n_cond]*=subint_len/bound['mat_param'].get('mup',1.0)
-            for n in xrange(self.n_cond):
-                if self.smn.isCalcC: 
-                    self.mC[m,n]+=self.matrix_QC[beg:end,n].sum()
+            if not bound['grounded']:
+                if self.smn.isCalcC:
+                    self.matrix_QC[beg:end,0:self.n_cond]*=subint_len*bound['mat_param'].get('erp',1.0)
                 if self.smn.isCalcL:
-                    self.mL[m,n]+=self.matrix_QL[beg:end,n].sum()
+                    self.matrix_QL[beg:end,0:self.n_cond]*=subint_len/bound['mat_param'].get('mup',1.0)
+                for n in xrange(self.n_cond):
+                    if self.smn.isCalcC: 
+                        self.mC[m,n]+=self.matrix_QC[beg:end,n].sum()
+                    if self.smn.isCalcL:
+                        self.mL[m,n]+=self.matrix_QL[beg:end,n].sum()
             beg=end
         if self.smn.isCalcL: self.mL=la.inv(self.mL)/(V0*V0)
