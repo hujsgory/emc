@@ -176,6 +176,7 @@ class Test_Board2(unittest.TestCase):
         self.board=Board()
         self.board.layer(990e-6,4.3)
         self.board.conductor(800e-6,401e-6,18e-6)
+        self.board.medium['mu']=1.00000037
     def test_1(self):
         self.board.board2conf()
         x0,x1,x2,x3=0.0,800e-6,1201e-6,2001e-6

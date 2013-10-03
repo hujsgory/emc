@@ -165,7 +165,7 @@ class Conf(object):
 class Board():
     def __init__(self):
         self.layers=list()
-        self.medium={'er':1.0,'td':0.0,'mu':1.00000037}
+        self.medium={'er':1.0,'td':0.0,'mu':1.0}
     def layer(self,height,er,td=0.0,mu=1.0):
         if height<=0.0 or er<1.0 or td <0.0:
             raise ValueError
@@ -175,7 +175,7 @@ class Board():
             if self.layers[-1]['is_cover']:
                 raise ValueError('Layer can\'t be applied to cover')
         self.layers.append({'height':height,'er':er,'td':td,'mu':mu,'is_cover':False,'cond':list()})
-    def conductor(self,space,width,thickness,depth=0.0,to_center=False):
+    def conductor(self,space,width,thickness,depth=0.0,grounded=False,to_center=False):
         if len(self.layers)==0:
             raise ValueError('It is necessary to create at least one layer')
         last_layer_cond=self.layers[-1]['cond']
@@ -187,7 +187,7 @@ class Board():
             raise ValueError('All parameters must be positive')
         if depth>=self.layers[-1]['height']:
             raise ValueError('Depth is greater than layer height')
-        last_layer_cond.append({'space':space,'width':width,'thickness':thickness,'depth':depth})
+        last_layer_cond.append({'space':space,'width':width,'thickness':thickness,'grounded':grounded,'depth':depth})
     def cover(self,height,er,td=0.0,mu=1.0):
         if len(self.layers)==0:
             raise ValueError('It is necessary to create at least one layer')
@@ -229,7 +229,10 @@ class Board():
                 x_cond_right = 0.0
                 # Conductor-dielectric bounds building
                 for cond in layer['cond']:
-                    self.conf.cond(erp=er_bottom,tdp=td_bottom,mup=mu_bottom)
+                    if not cond['grounded']:
+                        self.conf.cond(erp=er_bottom,tdp=td_bottom,mup=mu_bottom)
+                    else:
+                        self.conf.ground_cond(erp=er_bottom,tdp=td_bottom,mup=mu_bottom)
                     y_cond_bottom = y_layer       - cond['depth']
                     y_cond_top    = y_cond_bottom + cond['thickness']
                     x_cond_left  +=                 cond['space']
@@ -337,9 +340,6 @@ class Board():
                 end=Coord(x_right,y_layer+cover[-1]['thickness'])
                 self.conf.add(Section(beg,end))
 
-'''
-Port from smn.cpp
-'''
 
 class Smn(object):
     # list_bounds,iflg,matrix_S,m_size
@@ -349,7 +349,8 @@ class Smn(object):
         self.list_cond=conf.list_cond
         self.list_diel=conf.list_diel
         self.iflg=conf.iflg
-        self.nc=reduce(lambda r,x: r+x['n_subint'],filter(lambda x: not x['grounded'],self.list_cond),0)
+        #self.nc=reduce(lambda r,x: r+x['n_subint'],filter(lambda x: not x['grounded'],self.list_cond),0)
+        self.nc=reduce(lambda r,x: r+x['n_subint'],self.list_cond,0)
         self.isCalcC,self.isCalcL=False,False
 
     def sumatan(self,a1,a2,c):
@@ -472,10 +473,10 @@ class Smn(object):
         self._calcSmn_(self.matrix_S00,self.list_cond,self.list_cond,False)
     # matrix S01 filling
     def calcS01(self):
-        if self.isCalcC:
+        if self.isCalcC and self.nd_C>0:
             self.matrix_S01_C=numpy.zeros((self.nc,self.nd_C))
             self._calcSmn_(self.matrix_S01_C,self.list_cond,self.list_diel_C,False)
-        if self.isCalcL:
+        if self.isCalcL and self.nd_L>0:
             self.matrix_S01_L=numpy.zeros((self.nc,self.nd_L))
             self._calcSmn_(self.matrix_S01_L,self.list_cond,self.list_diel_L,False)
 # FIXME: filling last column if infinite ground is not exist
@@ -483,10 +484,10 @@ class Smn(object):
             pass
     # matrix S10 filling
     def calcS10(self):
-        if self.isCalcC:
+        if self.isCalcC and self.nd_C>0:
             self.matrix_S10_C=numpy.zeros((self.nd_C,self.nc))
             self._calcSmn_(self.matrix_S10_C,self.list_diel_C,self.list_cond,True)
-        if self.isCalcL:
+        if self.isCalcL and self.nd_L>0:
             self.matrix_S10_L=numpy.zeros((self.nd_L,self.nc))
             self._calcSmn_(self.matrix_S10_L,self.list_diel_L,self.list_cond,True)
 # FIXME: filling last row if infinite ground is not exist
@@ -495,7 +496,7 @@ class Smn(object):
     # matrix S11 filling
 #FIXME: Need to adding er_plus and/or mu_plus to diagonal of S11 in moment, when LC-parameters is calculated
     def calcS11(self):
-        if self.isCalcC:
+        if self.isCalcC and self.nd_C>0:
             nd=self.nd_C
             list_diel=self.list_diel_C
             self.matrix_S11_C=numpy.zeros((nd,nd))
@@ -508,7 +509,7 @@ class Smn(object):
                 for i in xrange(bound['n_subint']):
                     self.matrix_S11_C[m,m]+=er_plus
                     m+=1
-        if self.isCalcL:
+        if self.isCalcL and self.nd_L>0:
             nd=self.nd_L
             list_diel=self.list_diel_L
             self.matrix_S11_L=numpy.zeros((nd,nd))
@@ -531,25 +532,26 @@ class Smn(object):
         # C
         self.calcS10()
         self.calcLast()
-        if self.isCalcC:
+        if self.isCalcC and self.nd_C>0:
             self.matrix_S10_C=numpy.dot(self.matrix_S10_C,self.matrix_S00)
-        if self.isCalcL:
+        if self.isCalcL and self.nd_L>0:
             self.matrix_S10_L=numpy.dot(self.matrix_S10_L,self.matrix_S00)
         # D
         self.calcS11()
-        if self.isCalcC:
+        if self.isCalcC and self.nd_C>0:
             self.matrix_S11_C-=numpy.dot(self.matrix_S10_C,self.matrix_S01_C)
             self.matrix_S11_C=la.inv(self.matrix_S11_C)
-        if self.isCalcL:
+        if self.isCalcL and self.nd_L>0:
             self.matrix_S11_L-=numpy.dot(self.matrix_S10_L,self.matrix_S01_L)
             self.matrix_S11_L=la.inv(self.matrix_S11_L)
+            
 
 
 
 class RLGC():
     def __init__(self,conf):
         self.smn=Smn(conf)
-        self.n_cond=len(set(map(lambda x: x['obj_count'],self.smn.list_cond)))
+        self.n_cond=len(set(map(lambda x: x['obj_count'],filter(lambda x: not x['grounded'],self.smn.list_cond))))
     def calcC(self):
         self.smn.isCalcC=True
         self._calcLC_()
@@ -565,45 +567,53 @@ class RLGC():
         
         # Excitation vector filling
         exc_v0 = numpy.zeros((self.smn.nc,self.n_cond))
-        beg,n,old_cond=0,0,self.smn.list_cond[0]['obj_count']
+        beg,n,old_cond=0,0,filter(lambda x: not x['grounded'],self.smn.list_cond)[0]['obj_count']
         for bound in self.smn.list_cond:
-            if old_cond!=bound['obj_count'] and not bound['grounded']: n+=1
-            old_cond=bound['obj_count']
             end=beg+bound['n_subint']
-            exc_v0[beg:end,n]=Coef_C
+            if not bound['grounded']:
+                if old_cond!=bound['obj_count']:
+                    n+=1
+                old_cond=bound['obj_count']
+                exc_v0[beg:end,n]=Coef_C
             beg=end
         
         # Matrix Q calculating
         if self.smn.isCalcC:
             self.matrix_QC = numpy.zeros((self.smn.nc+self.smn.nd_C,self.n_cond))
-            self.matrix_QC[            :self.smn.nc] = exc_v0
-            self.matrix_QC[ self.smn.nc:           ]-= numpy.dot(self.smn.matrix_S10_C, self.matrix_QC[            :self.smn.nc ])
-            self.matrix_QC[ self.smn.nc:           ] = numpy.dot(self.smn.matrix_S11_C, self.matrix_QC[ self.smn.nc:            ])
-            self.matrix_QC[            :self.smn.nc]-= numpy.dot(self.smn.matrix_S01_C, self.matrix_QC[ self.smn.nc:            ])
-            self.matrix_QC[            :self.smn.nc] = numpy.dot(self.smn.matrix_S00  , self.matrix_QC[            :self.smn.nc ])
+            self.matrix_QC[            :self.smn.nc ] = exc_v0
+            if self.smn.nd_C>0:
+                self.matrix_QC[ self.smn.nc:            ]-= numpy.dot(self.smn.matrix_S10_C, self.matrix_QC[            :self.smn.nc ])
+                self.matrix_QC[ self.smn.nc:            ] = numpy.dot(self.smn.matrix_S11_C, self.matrix_QC[ self.smn.nc:            ])
+                self.matrix_QC[            :self.smn.nc ]-= numpy.dot(self.smn.matrix_S01_C, self.matrix_QC[ self.smn.nc:            ])
+            self.matrix_QC[            :self.smn.nc ] = numpy.dot(self.smn.matrix_S00  , self.matrix_QC[            :self.smn.nc ])
             self.mC = numpy.zeros((self.n_cond,self.n_cond))
 
         if self.smn.isCalcL:
-            self.matrix_QL = numpy.zeros((self.smn.nc+self.smn.nd_C,self.n_cond))
+            self.matrix_QL = numpy.zeros((self.smn.nc+self.smn.nd_L,self.n_cond))
             self.matrix_QL[            :self.smn.nc] = exc_v0
-            self.matrix_QL[ self.smn.nc:           ]-= numpy.dot(self.smn.matrix_S10_L, self.matrix_QL[            :self.smn.nc ])
-            self.matrix_QL[ self.smn.nc:           ] = numpy.dot(self.smn.matrix_S11_L, self.matrix_QL[ self.smn.nc:            ])
-            self.matrix_QL[            :self.smn.nc]-= numpy.dot(self.smn.matrix_S01_L, self.matrix_QL[ self.smn.nc:            ])
-            self.matrix_QL[            :self.smn.nc] = numpy.dot(self.smn.matrix_S00  , self.matrix_QL[            :self.smn.nc ])
+            if self.smn.nd_L>0:
+                self.matrix_QL[ self.smn.nc:            ]-= numpy.dot(self.smn.matrix_S10_L, self.matrix_QL[            :self.smn.nc ])
+                self.matrix_QL[ self.smn.nc:            ] = numpy.dot(self.smn.matrix_S11_L, self.matrix_QL[ self.smn.nc:            ])
+                self.matrix_QL[            :self.smn.nc ]-= numpy.dot(self.smn.matrix_S01_L, self.matrix_QL[ self.smn.nc:            ])
+            self.matrix_QL[            :self.smn.nc ] = numpy.dot(self.smn.matrix_S00  , self.matrix_QL[            :self.smn.nc ])
             self.mL = numpy.zeros((self.n_cond,self.n_cond))
 
         # Matrix C and L calculating
-        beg,m,old_cond=0,0,self.smn.list_cond[0]['obj_count']
+        beg,m,old_cond=0,0,filter(lambda x: not x['grounded'],self.smn.list_cond)[0]['obj_count']
         for bound in self.smn.list_cond:
-            if old_cond!=bound['obj_count'] and not bound['grounded']: m+=1
-            old_cond=bound['obj_count']
             end=beg+bound['n_subint']
-            subint_len=bound['section'].getSubinterval(n=bound['n_subint']).len
             if not bound['grounded']:
-                if self.smn.isCalcC:
-                    self.matrix_QC[beg:end,0:self.n_cond]*=subint_len*bound['mat_param'].get('erp',1.0)
-                if self.smn.isCalcL:
-                    self.matrix_QL[beg:end,0:self.n_cond]*=subint_len/bound['mat_param'].get('mup',1.0)
+                if old_cond!=bound['obj_count']: m+=1
+                old_cond=bound['obj_count']
+            erp=bound['mat_param'].get('erp',1.0)
+            mup=bound['mat_param'].get('mup',1.0)
+            if not bound['grounded']:
+                for j,i in enumerate(xrange(beg,end)):
+                    subint_len=bound['section'].getSubinterval(j,bound['n_subint']).len
+                    if self.smn.isCalcC:
+                        self.matrix_QC[i,0:self.n_cond]*=subint_len*erp
+                    if self.smn.isCalcL:
+                        self.matrix_QL[i,0:self.n_cond]*=subint_len/mup
                 for n in xrange(self.n_cond):
                     if self.smn.isCalcC: 
                         self.mC[m,n]+=self.matrix_QC[beg:end,n].sum()
