@@ -15,7 +15,7 @@ d1 = w*5.0
 all_W=2*d1+2*s1+w
 d2=all_W-2.0*s2
 
-isgrounded=False
+isgrounded=True
 
 config=Board()
 config.layer(h1,er1)
@@ -45,3 +45,4 @@ if not isgrounded:
 else:
    print lc.mC
    print lc.mL
+

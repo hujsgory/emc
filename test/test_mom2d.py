@@ -5,9 +5,9 @@ from math import *
 import unittest
 import numpy
 def read_matrix(fname):
-    return map(lambda x: map(float,x.split()),open('./test/'+fname).readlines())
+    return map(lambda x: map(float,x.split()),open('test/'+fname).readlines())
 def read_vector(fname):
-    return map(float,open('./test/'+fname).readline().split())
+    return map(float,open('test/'+fname).readline().split())
         
 class Test_Coord(unittest.TestCase):
     def setUp(self):
