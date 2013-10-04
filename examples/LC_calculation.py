@@ -1,4 +1,4 @@
-from mom2d import *
+from emc.mom2d import *
 t=18e-6
 w=890e-6
 h1=144.6e-6

@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf8 -*-
-from mom2d import *
+from emc.mom2d import *
 from math import *
 import unittest
 import numpy
 def read_matrix(fname):
-    return map(lambda x: map(float,x.split()),open('test/'+fname).readlines())
+    return map(lambda x: map(float,x.split()),open('emc/test/'+fname).readlines())
 def read_vector(fname):
-    return map(float,open('test/'+fname).readline().split())
+    return map(float,open('emc/test/'+fname).readline().split())
         
 class Test_Coord(unittest.TestCase):
     def setUp(self):
