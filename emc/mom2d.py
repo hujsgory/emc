@@ -160,6 +160,9 @@ class Conf(object):
         self.mat_type=True
         self.obj_count+=1
         self.sect_count=0
+    def set_subintervals(self,n_subint):
+        for bound in self:
+            bound['n_subint']=n_subint
 
 
 class Board():
@@ -194,7 +197,7 @@ class Board():
         self.layers.append({'height':height,'er':er,'td':td,'mu':mu,'is_cover':True,'cond':list()})
 # FIXME: need to add approximate comparison for float numbers
     def board2conf(self):
-        self.conf=Conf()
+        self.structure=Conf()
         # Calculation of structure's right coordinate x
 # FIXME: x['cond'][0]['space'] may be raised exception
         max_x=max(map(lambda layer:
@@ -230,9 +233,9 @@ class Board():
                 # Conductor-dielectric bounds building
                 for cond in layer['cond']:
                     if not cond['grounded']:
-                        self.conf.cond(erp=er_bottom,tdp=td_bottom,mup=mu_bottom)
+                        self.structure.cond(erp=er_bottom,tdp=td_bottom,mup=mu_bottom)
                     else:
-                        self.conf.ground_cond(erp=er_bottom,tdp=td_bottom,mup=mu_bottom)
+                        self.structure.ground_cond(erp=er_bottom,tdp=td_bottom,mup=mu_bottom)
                     y_cond_bottom = y_layer       - cond['depth']
                     y_cond_top    = y_cond_bottom + cond['thickness']
                     x_cond_left  +=                 cond['space']
@@ -242,40 +245,40 @@ class Board():
                         if y_cond_top < y_layer : beg=Coord(x_cond_left,  y_cond_top)
                         else:                     beg=Coord(x_cond_left,  y_layer)
                         end=Coord(x_cond_left, y_cond_bottom)
-                        self.conf.add(Section(beg,end))
+                        self.structure.add(Section(beg,end))
                         beg = Coord(x_cond_right, y_cond_bottom);
                         if y_cond_top < y_layer : end=Coord(x_cond_right, y_cond_top)
                         else:                     end=Coord(x_cond_right, y_layer)
-                        self.conf.add(Section(beg,end))
+                        self.structure.add(Section(beg,end))
                     beg=Coord(x_cond_left,  y_cond_bottom)
                     end=Coord(x_cond_right, y_cond_bottom)
-                    self.conf.add(Section(beg,end))
-                    if y_cond_top >= y_layer: self.conf.mat_param={'erp':er_top,'tdp':td_top,'mup':mu_top}
+                    self.structure.add(Section(beg,end))
+                    if y_cond_top >= y_layer: self.structure.mat_param={'erp':er_top,'tdp':td_top,'mup':mu_top}
                     if y_cond_top >  y_layer:
                         beg = Coord(x_cond_right, y_layer)
                         end = Coord(x_cond_right, y_cond_top)
-                        self.conf.add(Section(beg,end))
+                        self.structure.add(Section(beg,end))
                         beg = Coord(x_cond_left,  y_cond_top)
                         end = Coord(x_cond_left,  y_layer)
-                        self.conf.add(Section(beg,end))
+                        self.structure.add(Section(beg,end))
                 
                     beg = Coord(x_cond_right, y_cond_top)
                     end = Coord(x_cond_left,  y_cond_top);
-                    self.conf.add(Section(beg,end))
+                    self.structure.add(Section(beg,end))
                     if cond['depth'] > cond['thickness']:
                         diel_sect.append((x_cond_left - cond['space'], x_cond_right))
                     else:
                         diel_sect.append((x_cond_left - cond['space'], x_cond_left))
                     x_cond_left = x_cond_right
                 # Dielectric-dielectric bounds building
-                self.conf.diel(erp=er_bottom,tdp=td_bottom,mup=mu_bottom,erm=er_top,tdm=td_top,mum=mu_top)
+                self.structure.diel(erp=er_bottom,tdp=td_bottom,mup=mu_bottom,erm=er_top,tdm=td_top,mum=mu_top)
                 for sect in diel_sect:
                     beg = Coord(sect[0], y_layer)
                     end = Coord(sect[1], y_layer)
-                    self.conf.add(Section(beg,end))
+                    self.structure.add(Section(beg,end))
                 beg = Coord(x_cond_right, y_layer)
                 end = Coord(max_x,   y_layer)
-                self.conf.add(Section(beg,end))
+                self.structure.add(Section(beg,end))
             # Cover building
             else:
                 layer['cover']=list()
@@ -323,22 +326,23 @@ class Board():
                             continue
                         j+=1
                 # 
-                self.conf.diel(erp=er_bottom,tdp=td_bottom,mup=mu_bottom,erm=er_top,tdm=td_top,mum=mu_top)
+                self.structure.diel(erp=er_bottom,tdp=td_bottom,mup=mu_bottom,erm=er_top,tdm=td_top,mum=mu_top)
                 x_left,x_right=0.0,0.0
                 for section_cur,section_next in zip(cover,cover[1:]) :
                     x_right = x_left + section_cur['width']
                     beg=Coord(x_left, y_layer+section_cur['thickness'])
                     end=Coord(x_right,y_layer+section_cur['thickness'])
-                    self.conf.add(Section(beg,end))
+                    self.structure.add(Section(beg,end))
                     if section_cur['thickness']!=section_next['thickness']:
                         beg=Coord(x_right,y_layer+section_cur ['thickness'])
                         end=Coord(x_right,y_layer+section_next['thickness'])
-                        self.conf.add(Section(beg,end))
+                        self.structure.add(Section(beg,end))
                     x_left=x_right
                 x_right = x_left + cover[-1]['width']
                 beg=Coord(x_left, y_layer+cover[-1]['thickness'])
                 end=Coord(x_right,y_layer+cover[-1]['thickness'])
-                self.conf.add(Section(beg,end))
+                self.structure.add(Section(beg,end))
+		return self.structure
 
 
 class Smn(object):
@@ -348,8 +352,9 @@ class Smn(object):
             raise TypeError
         self.list_cond=conf.list_cond
         self.list_diel=conf.list_diel
+        self.not_grounded_cond=filter(lambda x: not x['grounded'],self.list_cond)
+        if len(self.not_grounded_cond)<=0: raise ValueError('Not grounded conductors is not exist')
         self.iflg=conf.iflg
-        #self.nc=reduce(lambda r,x: r+x['n_subint'],filter(lambda x: not x['grounded'],self.list_cond),0)
         self.nc=reduce(lambda r,x: r+x['n_subint'],self.list_cond,0)
         self.isCalcC,self.isCalcL=False,False
 
@@ -551,7 +556,7 @@ class Smn(object):
 class RLGC():
     def __init__(self,conf):
         self.smn=Smn(conf)
-        self.n_cond=len(set(map(lambda x: x['obj_count'],filter(lambda x: not x['grounded'],self.smn.list_cond))))
+        self.n_cond=len(set(map(lambda x: x['obj_count'],self.smn.not_grounded_cond)))
     def calcC(self):
         self.smn.isCalcC=True
         self._calcLC_()
@@ -567,7 +572,7 @@ class RLGC():
         
         # Excitation vector filling
         exc_v0 = numpy.zeros((self.smn.nc,self.n_cond))
-        beg,n,old_cond=0,0,filter(lambda x: not x['grounded'],self.smn.list_cond)[0]['obj_count']
+        beg,n,old_cond=0,0,self.smn.not_grounded_cond[0]['obj_count']
         for bound in self.smn.list_cond:
             end=beg+bound['n_subint']
             if not bound['grounded']:
@@ -599,7 +604,7 @@ class RLGC():
             self.mL = numpy.zeros((self.n_cond,self.n_cond))
 
         # Matrix C and L calculating
-        beg,m,old_cond=0,0,filter(lambda x: not x['grounded'],self.smn.list_cond)[0]['obj_count']
+        beg,m,old_cond=0,0,self.smn.not_grounded_cond[0]['obj_count']
         for bound in self.smn.list_cond:
             end=beg+bound['n_subint']
             if not bound['grounded']:

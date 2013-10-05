@@ -15,7 +15,7 @@ d1 = w*5.0
 all_W=2*d1+2*s1+w
 d2=all_W-2.0*s2
 
-isgrounded=True
+isgrounded=False
 
 config=Board()
 config.layer(h1,er1)
@@ -30,13 +30,17 @@ config.layer(h3,er3)
 config.conductor(1e-6,d1,t,grounded=isgrounded)
 config.conductor(s1,w,t)
 config.conductor(s1,d1,t,grounded=isgrounded)
-#config.conductor(1.e-6+d1+s1,w,t)
+
+#config.conductor(1.e-6+d1+s1,w,t,grounded=isgrounded)
 
 config.cover(h_mask,er_mask)
 
-config.board2conf()
 
-lc=RLGC(config.conf)
+config.board2conf()
+config.structure.set_subintervals(10)
+print len(config.structure.list_diel)+len(config.structure.list_cond)
+
+lc=RLGC(config.structure)
 lc.calcLC()
 if not isgrounded:
     m,n=lc.mL.shape
