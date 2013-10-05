@@ -484,9 +484,6 @@ class Smn(object):
         if self.isCalcL and self.nd_L>0:
             self.matrix_S01_L=numpy.zeros((self.nc,self.nd_L))
             self._calcSmn_(self.matrix_S01_L,self.list_cond,self.list_diel_L,False)
-# FIXME: filling last column if infinite ground is not exist
-        if not self.iflg:
-            pass
     # matrix S10 filling
     def calcS10(self):
         if self.isCalcC and self.nd_C>0:
@@ -495,11 +492,7 @@ class Smn(object):
         if self.isCalcL and self.nd_L>0:
             self.matrix_S10_L=numpy.zeros((self.nd_L,self.nc))
             self._calcSmn_(self.matrix_S10_L,self.list_diel_L,self.list_cond,True)
-# FIXME: filling last row if infinite ground is not exist
-        if not self.iflg:
-            pass
     # matrix S11 filling
-#FIXME: Need to adding er_plus and/or mu_plus to diagonal of S11 in moment, when LC-parameters is calculated
     def calcS11(self):
         if self.isCalcC and self.nd_C>0:
             nd=self.nd_C
