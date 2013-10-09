@@ -1,8 +1,12 @@
-Modules for solving the quasistatic problems
+Modules for solving a quasistatic problems
+
+Modules:
+    mom2d.py - the module for calculating the matrices L and C of the two-dimensional cross-sectional structure
 
 Required:
     python-2.7
     numpy
 
 Install:
-python setup.py install
+
+    python setup.py install
