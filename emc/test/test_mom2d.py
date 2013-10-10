@@ -5,9 +5,9 @@ from math import *
 import unittest
 import numpy
 def read_matrix(fname):
-    return map(lambda x: map(float,x.split()),open('emc/test/'+fname).readlines())
+    return map(lambda x: map(float,x.split()),open(fname).readlines())
 def read_vector(fname):
-    return map(float,open('emc/test/'+fname).readline().split())
+    return map(float,open(fname).readline().split())
         
 class Test_Coord(unittest.TestCase):
     def setUp(self):
@@ -48,7 +48,7 @@ class Test_Smn(unittest.TestCase):
     def setUp(self):
         self.s1=Section(Coord(0.0,0.0),Coord(1.0,1.0))
         self.s2=Section(Coord(1.0,1.0),Coord(2.0,0.0))
-        self.conf=Conf()
+        self.conf=Structure()
         self.conf.diel(erp=2.0)
         self.conf.add(self.s1)
         self.conf.cond(erp=2.0)
@@ -94,7 +94,7 @@ class Test_Conf(unittest.TestCase):
         self.cy2=Coord(0.0,0.5)
         self.cy3=Coord(0.0,1.0)
         self.cy4=Coord(0.0,2.0)
-        self.conf=Conf()
+        self.conf=Structure()
         self.conf.cond(erm=2.0)
     def test_intersection_1(self):
         self.conf.add(Section(self.c1,self.cx3))
@@ -113,7 +113,7 @@ class Test_Conf(unittest.TestCase):
 
 class Test_RLGC(unittest.TestCase):
     def setUp(self):
-        self.conf=Conf()
+        self.conf=Structure()
         self.conf.diel(erp=2.0,mup=5.0)
         self.conf.add(Section(Coord(0.0,0.0),Coord(0.0,1.0)),1)
         self.conf.add(Section(Coord(0.0,1.0),Coord(1.0,1.0)),2)

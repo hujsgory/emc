@@ -65,7 +65,7 @@ class Section(object):
             return Section(Coord(x+i*dx/n,y+i*dy/n),Coord(x+(i+1)*dx/n,y+(i+1)*dy/n))
         else: raise TypeError
 
-class Conf(object):
+class Structure(object):
     def __init__(self):
         self.list_cond=list()
         self.list_diel=list()
@@ -197,7 +197,7 @@ class Board():
         self.layers.append({'height':height,'er':er,'td':td,'mu':mu,'is_cover':True,'cond':list()})
 # FIXME: need to add approximate comparison for float numbers
     def board2conf(self):
-        self.structure=Conf()
+        self.structure=Structure()
         # Calculation of structure's right coordinate x
 # FIXME: x['cond'][0]['space'] may be raised exception
         max_x=max(map(lambda layer:
@@ -342,13 +342,13 @@ class Board():
                 beg=Coord(x_left, y_layer+cover[-1]['thickness'])
                 end=Coord(x_right,y_layer+cover[-1]['thickness'])
                 self.structure.add(Section(beg,end))
-		return self.structure
+        return self.structure
 
 
 class Smn(object):
     # list_bounds,iflg,matrix_S,m_size
     def __init__(self,conf):
-        if type(conf) is not Conf:
+        if type(conf) is not Structure:
             raise TypeError
         self.list_cond=conf.list_cond
         self.list_diel=conf.list_diel
