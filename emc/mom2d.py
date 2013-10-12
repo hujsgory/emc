@@ -400,6 +400,15 @@ class Smn(object):
         return a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)-2*dn
     
     def _calcSmn_(self,block_S,list1,list2,bDiel):
+        _list1_=list1.copy()
+        _list2_=list2.copy()
+        for bounds in _list1_:
+            section=bounds['section']
+            bounds['section']=[section.beg.x,section.beg.y,section.end.x,section.end.y]
+        for bounds in _list2_:
+            section=bounds['section']
+            bounds['section']=[section.beg.x,section.beg.y,section.end.x,section.end.y]
+
         m=0
         for bound_m in list1:
             section_m = bound_m['section']
