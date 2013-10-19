@@ -3,6 +3,7 @@
 from math import *
 import numpy
 import numpy.linalg as la
+import _smn
 
 eps0=8.854187817e-12 #dielectric constant
 Coef_C = 4*pi*eps0   
@@ -400,15 +401,13 @@ class Smn(object):
         return a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)-2*dn
     
     def _calcSmn_(self,block_S,list1,list2,bDiel):
-        _list1_=list1.copy()
-        _list2_=list2.copy()
-        for bounds in _list1_:
-            section=bounds['section']
-            bounds['section']=[section.beg.x,section.beg.y,section.end.x,section.end.y]
-        for bounds in _list2_:
-            section=bounds['section']
-            bounds['section']=[section.beg.x,section.beg.y,section.end.x,section.end.y]
+        for bounds in list1:
+            bounds['_section_']=[section.beg.x,section.beg.y,section.end.x,section.end.y]
+        for bounds in list2:
+            bounds['_section_']=[section.beg.x,section.beg.y,section.end.x,section.end.y]
+        _smn._calcSmn_(NULL,block_S,list1,list2,bDiel)
 
+        '''
         m=0
         for bound_m in list1:
             section_m = bound_m['section']
@@ -446,6 +445,7 @@ class Smn(object):
                             block_S[m, n]= Imn
                         n+=1
                 m+=1
+        '''
 
     # fill in additional row and column if infinite ground is not exist
     def calcLast(self):

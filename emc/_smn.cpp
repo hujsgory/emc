@@ -3,6 +3,24 @@
 #include <math.h>
 #define PI (3.14159265358979323846)
 
+static inline double hypot(double dx, double dy){
+	return sqrt(dx*dx+dy*dy);
+}
+static inline double sint(double dx,double dy){
+	return dx/hypot(dx,dy);
+}
+static inline double sint(double dx,double dy){
+	return dy/hypot(dx,dy);
+}
+static inline double center(double beg, double end){
+	return (beg+end)/2.0;
+}
+static inline double getBegSubint(double beg,double end,int i,int n){
+	return beg+double(i)  *(end-beg)/double(n);
+}
+static inline double getEndSubint(double beg,double end,int i,int n){
+	return beg+double(i+1)*(end-beg)/double(n);
+}
 double sumatan(double a1, double a2, double c){
     if (c==0.0)
         return -(a1+a2)/(a1*a2);
@@ -10,7 +28,7 @@ double sumatan(double a1, double a2, double c){
     double a12=a1*a2;
     double atg=0;
     if (c2==a12){
-        if (c*a1>0.0) 
+        if (c*a1>0.0)
             atg=PI/2;
         else 
             atg=-PI/2;
@@ -67,35 +85,47 @@ static PyObject * _smn(PyObject * self, PyObject * args){
     Py_ssize_t len_list2 = PyList_GetSize(list2);
     for (Py_ssize_t idx_list1=0; idx_list1<len_list1; idx_list1++){
         PyDictObject * bound_m=PyList_GetItem(list1,idx_list1);
-        //FIXME: Need convert Section to List
-        PyListObject * section_m=PyDict_GetItemString(bound_m,"section");
-        PyList_GetItem(section_m,0);
-        PyList_GetItem(section_m,1);
-        PyList_GetItem(section_m,2);
-        PyList_GetItem(section_m,3);
-    //    sinm,cosm=section_m.sint,section_m.cost
-    //    len_bound_m=bound_m['n_subint']
-    //    for i in xrange(len_bound_m):
-    //        subsection_i=section_m.getSubinterval(i,len_bound_m)
-    //        xm,ym = subsection_i.center.x,subsection_i.center.y
+        PyListObject * section_m=PyDict_GetItemString(bound_m,"_section_");
+        double m_begx=PyFloat_AsDouble(PyList_GetItem(section_m,0));
+        double m_begy=PyFloat_AsDouble(PyList_GetItem(section_m,1));
+        double m_endx=PyFloat_AsDouble(PyList_GetItem(section_m,2));
+        double m_endy=PyFloat_AsDouble(PyList_GetItem(section_m,3));
+        double sinm = sint(m_endx-m_begx,m_endy-m_begy);
+        double cosm = cost(m_endx-m_begx,m_endy-m_begy);
+        int len_bound_m=(int)PyLong_AsLong(PyDict_GetItemString(bound_m,"n_subint");
+        for(int i=0; i<len_bound_m; i++){
+            double subs_i_begx=getBegSubint(m_begx,m_endx,i,len_bound_m);
+			double subs_i_endx=getEndSubint(m_begx,m_endx,i,len_bound_m);
+			double subs_i_begy=getBegSubint(m_begy,m_endy,i,len_bound_m);
+			double subs_i_endy=getEndSubint(m_begy,m_endy,i,len_bound_m);
+            double xm=center(subs_i_begx,subs_i_endx),ym=center(subs_i_begy,subs_i_endy);
             int n=0;
-            for (Py_ssize_t idx_list1=0; idx_list1<len_list1; idx_list1++){
-    //            section_n = bound_n['section']
-    //            sinn,cosn=section_n.sint,section_n.cost
-    //            len_bound_n=bound_n['n_subint']
+            for (Py_ssize_t idx_list2=0; idx_list2<len_list2; idx_list2++){
+				PyDictObject * bound_n=PyList_GetItem(list2,idx_list2);
+				PyListObject * section_n=PyDict_GetItemString(bound_n,"_section_");
+				double n_begx=PyFloat_AsDouble(PyList_GetItem(section_n,0));
+				double n_begy=PyFloat_AsDouble(PyList_GetItem(section_n,1));
+				double n_endx=PyFloat_AsDouble(PyList_GetItem(section_n,2));
+				double n_endy=PyFloat_AsDouble(PyList_GetItem(section_n,3));
+				double sinn = sint(n_endx-n_begx,n_endy-n_begy);
+				double cosn = cost(n_endx-n_begx,n_endy-n_begy);
+				int len_bound_n=(int)PyLong_AsLong(PyDict_GetItemString(bound_n,"n_subint");
                 for (int j=0;j<len_bound_n;j++){
-                    //subsection_j=section_n.getSubinterval(j,len_bound_n)
-                    double dn2 = subsection_j.len/2;
-                    //double xn=subsection_j.center.x,yn=subsection_j.center.y;
+					double subs_j_begx=getBegSubint(n_begx,n_endx,j,len_bound_n);
+					double subs_j_endx=getEndSubint(n_begx,n_endx,j,len_bound_n);
+					double subs_j_begy=getBegSubint(n_begy,n_endy,j,len_bound_n);
+					double subs_j_endy=getEndSubint(n_begy,n_endy,j,len_bound_n);
+					double xm=center(subs_j_begx,subs_j_endx),ym=center(subs_j_begy,subs_j_endy);
+                    double dn2 = hypot(subs_j_endx-subs_j_begx,subs_j_endy-subs_j_begy)/2.0;
                     double dx = xm - xn;
                     double a2=dx*sinn-(ym-yn)*cosn;
                     double b2=dx*cosn+(ym-yn)*sinn;
                     double a1= dx*sinn+(ym+yn)*cosn;
                     double b1= dx*cosn-(ym+yn)*sinn;
                     if (!bDiel){
-                        //block_S[m, n] = -self.F1(a2, b2, dn2)
-                        //if self.iflg:
-                        //  block_S[m, n] += self.F1(a1, b1, dn2)
+                        //block_S[m, n] = -F1(a2, b2, dn2);
+                        //if (iflg)
+                        //  block_S[m, n] += F1(a1, b1, dn2);
                     }
                     else{
                         double f2= F2(a2, b2, dn2);
@@ -110,7 +140,8 @@ static PyObject * _smn(PyObject * self, PyObject * args){
                     }
                     n+=1;
                 }
-            m+=1;
+			}
+			m+=1;
         }
     }
 
