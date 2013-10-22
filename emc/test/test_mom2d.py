@@ -8,7 +8,8 @@ def read_matrix(fname):
     return map(lambda x: map(float,x.split()),open(fname).readlines())
 def read_vector(fname):
     return map(float,open(fname).readline().split())
-        
+
+  
 class Test_Coord(unittest.TestCase):
     def setUp(self):
         self.m=Coord(1.0,1.0)
@@ -23,6 +24,7 @@ class Test_Coord(unittest.TestCase):
         self.assertEqual(self.n.center(self.m), Coord(0.5,0.5), (self.n.center(self.m).x, self.n.center(self.m).y))
     def test_len(self):
         self.assertEqual(self.m.len(self.n)   , sqrt(2.0)     , (self.m.len(self.n),      sqrt(2.0)))
+
 
 class Test_Section(unittest.TestCase):
     def setUp(self):
@@ -60,6 +62,7 @@ class Test_Smn(unittest.TestCase):
         self.smn.calcS00()
         err=abs(self.smn.matrix_S00-read_matrix('_mom2d_Smn_CalcS00.txt'))
         self.assertTrue((err<1e-5).all())
+    
     def test_calcS01(self):
         self.conf.set_subintervals(3)
         self.smn=Smn(self.conf)
@@ -67,6 +70,7 @@ class Test_Smn(unittest.TestCase):
         self.smn.calcS01()
         err=abs(self.smn.matrix_S01_C-read_matrix('_mom2d_Smn_CalcS01.txt'))
         self.assertTrue((err<1e-5).all())
+    
     def test_calcS10(self):
         self.conf.set_subintervals(3)
         self.smn=Smn(self.conf)
@@ -74,6 +78,7 @@ class Test_Smn(unittest.TestCase):
         self.smn.calcS10()
         err=abs(self.smn.matrix_S10_C-read_matrix('_mom2d_Smn_CalcS10.txt'))
         self.assertTrue((err<1e-5).all())
+    
     def test_calcS11(self):
         self.conf.set_subintervals(3)
         self.smn=Smn(self.conf)
@@ -81,6 +86,7 @@ class Test_Smn(unittest.TestCase):
         self.smn.calcS11()
         err=abs(self.smn.matrix_S11_C-read_matrix('_mom2d_Smn_CalcS11.txt'))
         self.assertTrue((err<1e-5).all())                
+
 
 class Test_Conf(unittest.TestCase):
     def setUp(self):
@@ -140,6 +146,7 @@ class Test_RLGC(unittest.TestCase):
         err=abs(numpy.transpose(self.rlgc.matrix_QL[0:9])-read_matrix('_mom2d_RLGC_CalcL3.txt'))
         self.assertTrue((err<2e-16).all())
 
+
 class Test_Board1(unittest.TestCase):
     def setUp(self):
         self.board=Board()
@@ -166,6 +173,7 @@ class Test_Board1(unittest.TestCase):
     def test_board2conf(self):
         self.board.board2conf()
         self.assertAlmostEqual(self.board.max_x,2.25e-3,15)
+
 
 class Test_Board2(unittest.TestCase):
     def setUp(self):

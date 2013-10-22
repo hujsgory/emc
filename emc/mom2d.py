@@ -401,51 +401,18 @@ class Smn(object):
         return a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)-2*dn
     
     def _calcSmn_(self,block_S,list1,list2,bDiel):
-        for bounds in list1:
+        for bounds in self.list_cond:
+            section=bounds['section']
             bounds['_section_']=[section.beg.x,section.beg.y,section.end.x,section.end.y]
-        for bounds in list2:
+        for bounds in self.list_diel:
+            section=bounds['section']
             bounds['_section_']=[section.beg.x,section.beg.y,section.end.x,section.end.y]
-        _smn._calcSmn_(NULL,block_S,list1,list2,bDiel)
-
-        '''
-        m=0
-        for bound_m in list1:
-            section_m = bound_m['section']
-            sinm,cosm=section_m.sint,section_m.cost
-            len_bound_m=bound_m['n_subint']
-            for i in xrange(len_bound_m):
-                subsection_i=section_m.getSubinterval(i,len_bound_m)
-                xm,ym = subsection_i.center.x,subsection_i.center.y
-                n=0
-                for bound_n in list2:
-                    section_n = bound_n['section']
-                    sinn,cosn=section_n.sint,section_n.cost
-                    len_bound_n=bound_n['n_subint']
-                    for j in xrange(len_bound_n):
-                        subsection_j=section_n.getSubinterval(j,len_bound_n)
-                        dn2 = subsection_j.len/2
-                        xn,yn=subsection_j.center.x,subsection_j.center.y
-                        dx = xm - xn
-                        a2=dx*sinn-(ym-yn)*cosn
-                        b2=dx*cosn+(ym-yn)*sinn
-                        a1= dx*sinn+(ym+yn)*cosn
-                        b1= dx*cosn-(ym+yn)*sinn
-                        if not bDiel:
-                            block_S[m, n] = -self.F1(a2, b2, dn2)
-                            if self.iflg:
-                                block_S[m, n] += self.F1(a1, b1, dn2)
-                        else:
-                            f2= self.F2(a2, b2, dn2)
-                            f3= self.F3(a2, b2, dn2)
-                            Imn=        ((dx   -b2*cosn)*f2-cosn*f3)*sinm - ((ym-yn-b2*sinn)*f2-sinn*f3)*cosm 
-                            if self.iflg:
-                                f2= self.F2(a1, b1, dn2)
-                                f3= self.F3(a1, b1, dn2)
-                                Imn += -((dx   -b1*cosn)*f2-cosn*f3)*sinm + ((ym+yn+b1*sinn)*f2-sinn*f3)*cosm 
-                            block_S[m, n]= Imn
-                        n+=1
-                m+=1
-        '''
+        if type(block_S) is not numpy.ndarray or not numpy.issubdtype(block_S.dtype,numpy.float64) or type(list1) is not list or type(list2) is not list:
+            raise TypeError
+        if len(block_S.shape)==2 and block_S.shape[0]==reduce(lambda r,x: r+x['n_subint'], list1, 0) and block_S.shape[1]==reduce(lambda r,x: r+x['n_subint'], list2, 0):
+            _smn._calcSmn_(block_S,list1,list2,bDiel,self.iflg)
+        else:
+            raise ValueError
 
     # fill in additional row and column if infinite ground is not exist
     def calcLast(self):
@@ -483,30 +450,30 @@ class Smn(object):
         return reduce(lambda r,x: r+x['n_subint'],self.list_diel_L,nd)
     # matrix S00 filling
     def calcS00(self):
-        self.matrix_S00=numpy.zeros((self.nc,self.nc))
+        self.matrix_S00=numpy.zeros((self.nc,self.nc),dtype=numpy.float64)
         self._calcSmn_(self.matrix_S00,self.list_cond,self.list_cond,False)
     # matrix S01 filling
     def calcS01(self):
         if self.isCalcC and self.nd_C>0:
-            self.matrix_S01_C=numpy.zeros((self.nc,self.nd_C))
+            self.matrix_S01_C=numpy.zeros((self.nc,self.nd_C),dtype=numpy.float64)
             self._calcSmn_(self.matrix_S01_C,self.list_cond,self.list_diel_C,False)
         if self.isCalcL and self.nd_L>0:
-            self.matrix_S01_L=numpy.zeros((self.nc,self.nd_L))
+            self.matrix_S01_L=numpy.zeros((self.nc,self.nd_L),dtype=numpy.float64)
             self._calcSmn_(self.matrix_S01_L,self.list_cond,self.list_diel_L,False)
     # matrix S10 filling
     def calcS10(self):
         if self.isCalcC and self.nd_C>0:
-            self.matrix_S10_C=numpy.zeros((self.nd_C,self.nc))
+            self.matrix_S10_C=numpy.zeros((self.nd_C,self.nc),dtype=numpy.float64)
             self._calcSmn_(self.matrix_S10_C,self.list_diel_C,self.list_cond,True)
         if self.isCalcL and self.nd_L>0:
-            self.matrix_S10_L=numpy.zeros((self.nd_L,self.nc))
+            self.matrix_S10_L=numpy.zeros((self.nd_L,self.nc),dtype=numpy.float64)
             self._calcSmn_(self.matrix_S10_L,self.list_diel_L,self.list_cond,True)
     # matrix S11 filling
     def calcS11(self):
         if self.isCalcC and self.nd_C>0:
             nd=self.nd_C
             list_diel=self.list_diel_C
-            self.matrix_S11_C=numpy.zeros((nd,nd))
+            self.matrix_S11_C=numpy.zeros((nd,nd),dtype=numpy.float64)
             self._calcSmn_(self.matrix_S11_C,list_diel,list_diel,True)
             m=0
             for bound in list_diel:
@@ -519,7 +486,7 @@ class Smn(object):
         if self.isCalcL and self.nd_L>0:
             nd=self.nd_L
             list_diel=self.list_diel_L
-            self.matrix_S11_L=numpy.zeros((nd,nd))
+            self.matrix_S11_L=numpy.zeros((nd,nd),dtype=numpy.float64)
             self._calcSmn_(self.matrix_S11_L,list_diel,list_diel,True)
             m=0
             for bound in list_diel:
