@@ -142,7 +142,6 @@ class Test_RLGC(unittest.TestCase):
         err=abs(self.rlgc.mL-read_matrix('_mom2d_RLGC_CalcL1.txt'))
         self.assertTrue((err<1e-12).all())
     def test_calcL3(self):
-        #print self.rlgc.matrix_QL
         err=abs(numpy.transpose(self.rlgc.matrix_QL[0:9])-read_matrix('_mom2d_RLGC_CalcL3.txt'))
         self.assertTrue((err<2e-16).all())
 

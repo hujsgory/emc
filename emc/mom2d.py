@@ -4,6 +4,7 @@ from math import *
 import numpy
 import numpy.linalg as la
 import _smn
+import time
 
 eps0=8.854187817e-12 #dielectric constant
 Coef_C = 4*pi*eps0   
@@ -358,47 +359,6 @@ class Smn(object):
         self.iflg=conf.iflg
         self.nc=reduce(lambda r,x: r+x['n_subint'],self.list_cond,0)
         self.isCalcC,self.isCalcL=False,False
-
-    def sumatan(self,a1,a2,c):
-        if c==0.0:
-            return -(a1+a2)/(a1*a2)
-        c2=c*c
-        a12=a1*a2
-        if c2==a12:
-            if c*a1>0.0:
-                atg=pi/2
-            else:
-                atg=-pi/2
-        else:
-            atg=atan(c*(a1+a2)/(c2-a1*a2))
-            if a12/c2 > 1.:
-                if c*a1 > 0.0:
-                    atg += pi
-                else:
-                    atg-= pi
-        return atg
-    def F1(self,a,b,dn2):
-        k=dn2+b
-        l=dn2-b
-        if a!=0.0:
-            k1=k*k+a*a
-            l1=l*l+a*a
-            return dn2*(log(k1*l1)-4.)+ 2.*a*self.sumatan(k,l,a)+ b*log(k1/l1)
-        return b*log(k*k/(l*l))+dn2*(log(l*l*k*k)-4.)
-    def F2(self,a,b,dn2):
-        if a==0.0:
-            return self.sumatan(dn2+b, dn2-b, a)
-        return  self.sumatan(dn2+b,dn2-b,a)/a
-    def F3(self,a,b,dn2):
-        k=dn2+b
-        l=dn2-b
-        k= k*k+a*a
-        l= l*l+a*a
-        return 0.5*log(fabs(l/k))
-    def FI(self,a1, a2, c, dn):
-        if c!=0.0:
-            return 2*(c*(atan(a1/c)-atan(a2/c))-dn)+a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)
-        return a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)-2*dn
     
     def _calcSmn_(self,block_S,list1,list2,bDiel):
         for bounds in self.list_cond:
@@ -499,26 +459,61 @@ class Smn(object):
                     
     def calcS(self):
         # A
+        print "S00 filling"
+        beg=time.clock()
         self.calcS00()
+        end=time.clock()
+        print end-beg
+        
+        print "S00 inversion"
+        beg=time.clock()
         self.matrix_S00=la.inv(self.matrix_S00)
+        end=time.clock()
+        print end-beg
+        
         # B
+        print "S01 filling"
+        beg=time.clock()
         self.calcS01()
+        end=time.clock()
+        print end-beg
+        
         # C
+        print "S10 filling"
+        beg=time.clock()
         self.calcS10()
+        end=time.clock()
+        print end-beg
+        
         self.calcLast()
+        
+        print "S10 operation"
+        beg=time.clock()
         if self.isCalcC and self.nd_C>0:
             self.matrix_S10_C=numpy.dot(self.matrix_S10_C,self.matrix_S00)
         if self.isCalcL and self.nd_L>0:
             self.matrix_S10_L=numpy.dot(self.matrix_S10_L,self.matrix_S00)
+        end=time.clock()
+        print end-beg
+        
         # D
+        print "S11 filling"
+        beg=time.clock()
         self.calcS11()
+        end=time.clock()
+        print end-beg
+        
+        
+        print "S11 operation"
+        beg=time.clock()
         if self.isCalcC and self.nd_C>0:
             self.matrix_S11_C-=numpy.dot(self.matrix_S10_C,self.matrix_S01_C)
             self.matrix_S11_C=la.inv(self.matrix_S11_C)
         if self.isCalcL and self.nd_L>0:
             self.matrix_S11_L-=numpy.dot(self.matrix_S10_L,self.matrix_S01_L)
             self.matrix_S11_L=la.inv(self.matrix_S11_L)
-            
+        end=time.clock()
+        print end-beg
 
 
 

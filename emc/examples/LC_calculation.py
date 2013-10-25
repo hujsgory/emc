@@ -37,7 +37,7 @@ config.cover(h_mask,er_mask)
 
 
 config.board2conf()
-config.structure.set_subintervals(10)
+config.structure.set_subintervals(400)
 print len(config.structure.list_diel)+len(config.structure.list_cond)
 
 lc=RLGC(config.structure)
