@@ -463,59 +463,44 @@ class Smn(object):
         beg=time.clock()
         self.calcS00()
         end=time.clock()
-        print end-beg
+        print end-beg, self.matrix_S00.shape, '\n'
         
-        print "S00 inversion"
-        beg=time.clock()
         self.matrix_S00=la.inv(self.matrix_S00)
-        end=time.clock()
-        print end-beg
         
         # B
         print "S01 filling"
         beg=time.clock()
         self.calcS01()
         end=time.clock()
-        print end-beg
+        print end-beg,self.matrix_S01_C.shape,'\n'
         
         # C
         print "S10 filling"
         beg=time.clock()
         self.calcS10()
         end=time.clock()
-        print end-beg
+        print end-beg,self.matrix_S10_C.shape,'\n'
         
         self.calcLast()
         
-        print "S10 operation"
-        beg=time.clock()
         if self.isCalcC and self.nd_C>0:
             self.matrix_S10_C=numpy.dot(self.matrix_S10_C,self.matrix_S00)
         if self.isCalcL and self.nd_L>0:
             self.matrix_S10_L=numpy.dot(self.matrix_S10_L,self.matrix_S00)
-        end=time.clock()
-        print end-beg
         
         # D
         print "S11 filling"
         beg=time.clock()
         self.calcS11()
         end=time.clock()
-        print end-beg
+        print end-beg, self.matrix_S11_C.shape,'\n'
         
-        
-        print "S11 operation"
-        beg=time.clock()
         if self.isCalcC and self.nd_C>0:
             self.matrix_S11_C-=numpy.dot(self.matrix_S10_C,self.matrix_S01_C)
             self.matrix_S11_C=la.inv(self.matrix_S11_C)
         if self.isCalcL and self.nd_L>0:
             self.matrix_S11_L-=numpy.dot(self.matrix_S10_L,self.matrix_S01_L)
             self.matrix_S11_L=la.inv(self.matrix_S11_L)
-        end=time.clock()
-        print end-beg
-
-
 
 class RLGC():
     def __init__(self,conf):

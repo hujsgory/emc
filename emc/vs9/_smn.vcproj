@@ -250,7 +250,7 @@
 		</Configuration>
 		<Configuration
 			Name="Release|x64"
-			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			OutputDirectory="$(SolutionDir).."
 			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
 			ConfigurationType="2"
 			CharacterSet="1"
@@ -276,9 +276,13 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;_SMN_EXPORTS"
-				RuntimeLibrary="2"
+				FavorSizeOrSpeed="1"
+				AdditionalIncludeDirectories="&quot;c:\WinPython\python-2.7.5.amd64\Lib\site-packages\numpy\core\include&quot;;&quot;c:\WinPython\python-2.7.5.amd64\include&quot;"
+				PreprocessorDefinitions="_WINDLL;_MBCS"
+				ExceptionHandling="0"
+				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
+				EnableEnhancedInstructionSet="2"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="3"
@@ -294,11 +298,15 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				LinkIncremental="1"
-				GenerateDebugInformation="true"
-				SubSystem="2"
+				AdditionalDependencies="python27.lib"
+				OutputFile="$(OutDir)\$(ProjectName).pyd"
+				LinkIncremental="0"
+				AdditionalLibraryDirectories="C:\WinPython\python-2.7.5.amd64\libs; C:\WinPython\python-2.7.5.amd64\Lib\site-packages\numpy\core\lib"
+				GenerateDebugInformation="false"
+				SubSystem="0"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
+				OptimizeForWindows98="1"
 				TargetMachine="17"
 			/>
 			<Tool

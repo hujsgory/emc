@@ -79,28 +79,56 @@ static inline npy_double FI(npy_double a1, npy_double a2, npy_double c, npy_doub
     return a1*log(a1*a1+c*c)-a2*log(a2*a2+c*c)-2*dn;
 }
 
+struct elem_list{
+	npy_double begx;
+	npy_double begy;
+	npy_double endx;
+	npy_double endy;
+	int n_subint;
+};
+
 static char _smn_doc[]="Value of matrix S calculation";
 
 //self,block_S,list1,list2,bDiel
 static PyObject * _smn(PyObject * self, PyObject * args){
 	npy_bool bDiel=0,iflg=1;
-    PyObject  *list1=NULL, *list2=NULL;
+    PyObject  *py_list1=NULL, *py_list2=NULL;
     PyArrayObject *block_S=NULL;
-    PyArg_ParseTuple(args,"OOObb", &block_S, &list1, &list2, &bDiel, &iflg);
-
+    PyArg_ParseTuple(args,"OOObb", &block_S, &py_list1, &py_list2, &bDiel, &iflg);
 	npy_double * data=(npy_double *)PyArray_DATA(block_S);
-	Py_ssize_t len_list1 = PyList_Size(list1);
-	Py_ssize_t len_list2 = PyList_Size(list2);
-    for (Py_ssize_t idx_list1=0; idx_list1<len_list1; idx_list1++){
-		PyObject * bound_m=PyList_GetItem(list1,idx_list1);
+
+	Py_ssize_t len_list1 = PyList_Size(py_list1);
+	elem_list *list1=(elem_list *)malloc(len_list1*sizeof(elem_list));
+	for (Py_ssize_t idx_list1=0; idx_list1<len_list1; idx_list1++){
+		PyObject * bound_m=PyList_GetItem(py_list1,idx_list1);
 		PyObject * section_m=PyDict_GetItemString(bound_m,"_section_");
-        npy_double m_begx=PyFloat_AsDouble(PyList_GetItem(section_m,0));
-        npy_double m_begy=PyFloat_AsDouble(PyList_GetItem(section_m,1));
-        npy_double m_endx=PyFloat_AsDouble(PyList_GetItem(section_m,2));
-        npy_double m_endy=PyFloat_AsDouble(PyList_GetItem(section_m,3));
-        npy_double sinm = sint(m_endx-m_begx,m_endy-m_begy);
-        npy_double cosm = cost(m_endx-m_begx,m_endy-m_begy);
-        int len_bound_m=(int)PyLong_AsLong((PyObject *)PyDict_GetItemString(bound_m,"n_subint"));
+        list1[idx_list1].begx=PyFloat_AsDouble(PyList_GetItem(section_m,0));
+        list1[idx_list1].begy=PyFloat_AsDouble(PyList_GetItem(section_m,1));
+        list1[idx_list1].endx=PyFloat_AsDouble(PyList_GetItem(section_m,2));
+        list1[idx_list1].endy=PyFloat_AsDouble(PyList_GetItem(section_m,3));
+        list1[idx_list1].n_subint=(int)PyLong_AsLong((PyObject *)PyDict_GetItemString(bound_m,"n_subint"));
+	}
+	
+	Py_ssize_t len_list2 = PyList_Size(py_list2);
+	elem_list *list2=(elem_list *)malloc(len_list2*sizeof(elem_list));
+	for (Py_ssize_t idx_list2=0; idx_list2<len_list2; idx_list2++){
+		PyObject * bound_n=PyList_GetItem(py_list2,idx_list2);
+		PyObject * section_n=PyDict_GetItemString(bound_n,"_section_");
+		list2[idx_list2].begx=PyFloat_AsDouble(PyList_GetItem(section_n,0));
+		list2[idx_list2].begy=PyFloat_AsDouble(PyList_GetItem(section_n,1));
+		list2[idx_list2].endx=PyFloat_AsDouble(PyList_GetItem(section_n,2));
+		list2[idx_list2].endy=PyFloat_AsDouble(PyList_GetItem(section_n,3));
+		list2[idx_list2].n_subint=(int)PyLong_AsLong(PyDict_GetItemString(bound_n,"n_subint"));
+	}
+	
+    for (Py_ssize_t idx_list1=0; idx_list1<len_list1; idx_list1++){
+		npy_double m_begx = list1[idx_list1].begx;
+		npy_double m_begy = list1[idx_list1].begy;
+		npy_double m_endx = list1[idx_list1].endx;
+		npy_double m_endy = list1[idx_list1].endy;
+        int   len_bound_m = list1[idx_list1].n_subint;
+		npy_double sinm   = sint(m_endx-m_begx,m_endy-m_begy);
+        npy_double cosm   = cost(m_endx-m_begx,m_endy-m_begy);
         for(int i=0; i<len_bound_m; i++){
             npy_double subs_i_begx=getBegSubint(m_begx,m_endx,i,len_bound_m);
 			npy_double subs_i_endx=getEndSubint(m_begx,m_endx,i,len_bound_m);
@@ -109,16 +137,14 @@ static PyObject * _smn(PyObject * self, PyObject * args){
             npy_double xm=center(subs_i_begx,subs_i_endx),ym=center(subs_i_begy,subs_i_endy);
             int n=0;
             for (Py_ssize_t idx_list2=0; idx_list2<len_list2; idx_list2++){
-				PyObject * bound_n=PyList_GetItem(list2,idx_list2);
-				PyObject * section_n=PyDict_GetItemString(bound_n,"_section_");
-				npy_double n_begx=PyFloat_AsDouble(PyList_GetItem(section_n,0));
-				npy_double n_begy=PyFloat_AsDouble(PyList_GetItem(section_n,1));
-				npy_double n_endx=PyFloat_AsDouble(PyList_GetItem(section_n,2));
-				npy_double n_endy=PyFloat_AsDouble(PyList_GetItem(section_n,3));
-				npy_double sinn = sint(n_endx-n_begx,n_endy-n_begy);
-				npy_double cosn = cost(n_endx-n_begx,n_endy-n_begy);
-				long len_bound_n=PyLong_AsLong(PyDict_GetItemString(bound_n,"n_subint"));
-                for (long j=0;j<len_bound_n;j++){
+                npy_double n_begx = list2[idx_list2].begx;
+				npy_double n_begy = list2[idx_list2].begy;
+				npy_double n_endx = list2[idx_list2].endx;
+				npy_double n_endy = list2[idx_list2].endy;
+				int len_bound_n   = list2[idx_list2].n_subint;
+				npy_double sinn   = sint(n_endx-n_begx,n_endy-n_begy);
+				npy_double cosn   = cost(n_endx-n_begx,n_endy-n_begy);
+                for (int j=0;j<len_bound_n;j++){
 					npy_double subs_j_begx=getBegSubint(n_begx,n_endx,j,len_bound_n);
 					npy_double subs_j_endx=getEndSubint(n_begx,n_endx,j,len_bound_n);
 					npy_double subs_j_begy=getBegSubint(n_begy,n_endy,j,len_bound_n);
@@ -126,10 +152,10 @@ static PyObject * _smn(PyObject * self, PyObject * args){
 					npy_double xn  = center(subs_j_begx,subs_j_endx),yn=center(subs_j_begy,subs_j_endy);
                     npy_double dn2 = hypot(subs_j_endx-subs_j_begx,subs_j_endy-subs_j_begy)/2.0;
                     npy_double dx  = xm - xn;
-                    npy_double a2= dx*sinn-(ym-yn)*cosn;
-                    npy_double b2= dx*cosn+(ym-yn)*sinn;
-                    npy_double a1= dx*sinn+(ym+yn)*cosn;
-                    npy_double b1= dx*cosn-(ym+yn)*sinn;
+                    npy_double a2  = dx*sinn-(ym-yn)*cosn;
+                    npy_double b2  = dx*cosn+(ym-yn)*sinn;
+                    npy_double a1  = dx*sinn+(ym+yn)*cosn;
+                    npy_double b1  = dx*cosn-(ym+yn)*sinn;
                     if (!bDiel){
                         *data    = -F1(a2, b2, dn2);
                         if (iflg)
@@ -151,7 +177,8 @@ static PyObject * _smn(PyObject * self, PyObject * args){
 			}
 		}
     }
-	
+	free(list1);
+	free(list2);
 	return Py_BuildValue("i",1);
 }
 
