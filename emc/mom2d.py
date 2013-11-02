@@ -13,6 +13,10 @@ V0 = 299792458.0     # light velocity
 
 class Coord(object):
     def __init__(self, x=0.0, y=0.0):
+        '''
+        Constructor Coord
+        @brief Set coordinates x and y
+        '''
         self.x, self.y = float(x), float(y)
 
     def __eq__(self, _coord):
@@ -499,33 +503,17 @@ class Smn(object):
             nd = 1
         return reduce(lambda r, x: r + x['n_subint'], self.list_diel_L, nd)
 
-    # matrix S00 filling
-    def calcS00(self):
-        self.matrix_S00 = numpy.zeros((self.nc, self.nc), dtype=numpy.float64)
+    def fillS(self):
+        nc=self.nc
+        self.matrix_S00 = numpy.zeros((nc, nc), dtype=numpy.float64)
         self._calcSmn_(self.matrix_S00, self.list_cond, self.list_cond, False)
-
-    # matrix S01 filling
-    def calcS01(self):
-        if self.isCalcC and self.nd_C > 0:
-            self.matrix_S01_C = numpy.zeros((self.nc, self.nd_C), dtype=numpy.float64)
+        nd=self.nd_C
+        if self.isCalcC and nd > 0:
+            
+            self.matrix_S01_C = numpy.zeros((nc, nd), dtype=numpy.float64)
             self._calcSmn_(self.matrix_S01_C, self.list_cond, self.list_diel_C, False)
-        if self.isCalcL and self.nd_L > 0:
-            self.matrix_S01_L = numpy.zeros((self.nc, self.nd_L), dtype=numpy.float64)
-            self._calcSmn_(self.matrix_S01_L, self.list_cond, self.list_diel_L, False)
-
-    # matrix S10 filling
-    def calcS10(self):
-        if self.isCalcC and self.nd_C > 0:
-            self.matrix_S10_C = numpy.zeros((self.nd_C, self.nc), dtype=numpy.float64)
+            self.matrix_S10_C = numpy.zeros((nd, nc), dtype=numpy.float64)
             self._calcSmn_(self.matrix_S10_C, self.list_diel_C, self.list_cond, True)
-        if self.isCalcL and self.nd_L > 0:
-            self.matrix_S10_L = numpy.zeros((self.nd_L, self.nc), dtype=numpy.float64)
-            self._calcSmn_(self.matrix_S10_L, self.list_diel_L, self.list_cond, True)
-
-    # matrix S11 filling
-    def calcS11(self):
-        if self.isCalcC and self.nd_C > 0:
-            nd = self.nd_C
             list_diel = self.list_diel_C
             self.matrix_S11_C = numpy.zeros((nd, nd), dtype=numpy.float64)
             self._calcSmn_(self.matrix_S11_C, list_diel, list_diel, True)
@@ -537,8 +525,12 @@ class Smn(object):
                 for i in xrange(bound['n_subint']):
                     self.matrix_S11_C[m, m] += er_plus
                     m += 1
-        if self.isCalcL and self.nd_L > 0:
-            nd = self.nd_L
+        nd=self.nd_L
+        if self.isCalcL and nd > 0:
+            self.matrix_S01_L = numpy.zeros((nc, nd), dtype=numpy.float64)
+            self._calcSmn_(self.matrix_S01_L, self.list_cond, self.list_diel_L, False)
+            self.matrix_S10_L = numpy.zeros((nd, nc), dtype=numpy.float64)
+            self._calcSmn_(self.matrix_S10_L, self.list_diel_L, self.list_cond, True)
             list_diel = self.list_diel_L
             self.matrix_S11_L = numpy.zeros((nd, nd), dtype=numpy.float64)
             self._calcSmn_(self.matrix_S11_L, list_diel, list_diel, True)
@@ -550,57 +542,37 @@ class Smn(object):
                 for i in xrange(bound['n_subint']):
                     self.matrix_S11_L[m, m] += mu_plus
                     m += 1
-
-    def calcS(self):
-        # A
-        print "S00 filling"
-        beg = time.clock()
-        self.calcS00()
-        end = time.clock()
-        print end-beg,  self.matrix_S00.shape,  '\n'
-
-        self.matrix_S00 = la.inv(self.matrix_S00)
-
-        # B
-        print "S01 filling"
-        beg = time.clock()
-        self.calcS01()
-        end = time.clock()
-        print end-beg, self.matrix_S01_C.shape, '\n'
-
-        # C
-        print "S10 filling"
-        beg = time.clock()
-        self.calcS10()
-        end = time.clock()
-        print end-beg, self.matrix_S10_C.shape, '\n'
-
         self.calcLast()
 
+    def factorizeS(self):
+        self.matrix_S00 = la.inv(self.matrix_S00)
         if self.isCalcC and self.nd_C > 0:
             self.matrix_S10_C = numpy.dot(self.matrix_S10_C, self.matrix_S00)
-        if self.isCalcL and self.nd_L > 0:
-            self.matrix_S10_L = numpy.dot(self.matrix_S10_L, self.matrix_S00)
-
-        # D
-        print "S11 filling"
-        beg = time.clock()
-        self.calcS11()
-        end = time.clock()
-        print end-beg,  self.matrix_S11_C.shape, '\n'
-
-        if self.isCalcC and self.nd_C > 0:
             self.matrix_S11_C -= numpy.dot(self.matrix_S10_C, self.matrix_S01_C)
             self.matrix_S11_C = la.inv(self.matrix_S11_C)
         if self.isCalcL and self.nd_L > 0:
+            self.matrix_S10_L = numpy.dot(self.matrix_S10_L, self.matrix_S00)
             self.matrix_S11_L -= numpy.dot(self.matrix_S10_L, self.matrix_S01_L)
             self.matrix_S11_L = la.inv(self.matrix_S11_L)
+
+    def solveS(self,matrix_Q):
+        if self.isCalcC and self.nd_C > 0:
+            matrix_QC[self.nc:] -= numpy.dot(self.matrix_S10_C, matrix_Q[:self.nc])
+            matrix_QC[self.nc:]  = numpy.dot(self.matrix_S11_C, matrix_Q[self.nc:])
+            matrix_QC[:self.nc] -= numpy.dot(self.matrix_S01_C, matrix_Q[self.nc:])
+        matrix_Q[:self.nc] = numpy.dot(self.matrix_S00, matrix_Q[:self.nc])
 
 
 class RLGC():
     def __init__(self, conf):
         self.smn = Smn(conf)
         self.n_cond = len(set(map(lambda x: x['obj_count'], self.smn.not_grounded_cond)))
+
+    def update(self, conf):
+        self.precondition = self.smn
+        self.smn = Smn(conf)
+        self.smn.fillS()
+        
 
     def calcC(self):
         self.smn.isCalcC = True
@@ -615,7 +587,8 @@ class RLGC():
         self._calcLC_()
 
     def _calcLC_(self):
-        self.smn.calcS()
+        self.smn.fillS()
+        self.smn.factorizeS()
 
         # Excitation vector filling
         exc_v0 = numpy.zeros((self.smn.nc, self.n_cond))
@@ -632,7 +605,7 @@ class RLGC():
         # Matrix Q calculating
         if self.smn.isCalcC:
             self.matrix_QC = numpy.zeros((self.smn.nc + self.smn.nd_C, self.n_cond))
-            self.matrix_QC[: self.smn.nc] = exc_v0
+            self.matrix_QC[:self.smn.nc] = exc_v0
             if self.smn.nd_C > 0:
                 self.matrix_QC[self.smn.nc:] -= numpy.dot(self.smn.matrix_S10_C, self.matrix_QC[:self.smn.nc])
                 self.matrix_QC[self.smn.nc:]  = numpy.dot(self.smn.matrix_S11_C, self.matrix_QC[self.smn.nc:])
@@ -655,7 +628,8 @@ class RLGC():
         for bound in self.smn.list_cond:
             end = beg + bound['n_subint']
             if not bound['grounded']:
-                if old_cond != bound['obj_count']: m += 1
+                if old_cond != bound['obj_count']:
+                    m += 1
                 old_cond = bound['obj_count']
             erp = bound['mat_param'].get('erp', 1.0)
             mup = bound['mat_param'].get('mup', 1.0)

@@ -55,35 +55,20 @@ class Test_Smn(unittest.TestCase):
         self.conf.add(self.s1)
         self.conf.cond(erp=2.0)
         self.conf.add(self.s2)
-        self.smn=Smn(self.conf)
-    def test_calcS00(self):
         self.conf.set_subintervals(3)
         self.smn=Smn(self.conf)
-        self.smn.calcS00()
+        self.smn.isCalcC=True
+        self.smn.fillS()
+    def test_fillS00(self):
         err=abs(self.smn.matrix_S00-read_matrix('_mom2d_Smn_CalcS00.txt'))
         self.assertTrue((err<1e-5).all())
-    
-    def test_calcS01(self):
-        self.conf.set_subintervals(3)
-        self.smn=Smn(self.conf)
-        self.smn.isCalcC=True
-        self.smn.calcS01()
+    def test_fillS01(self):
         err=abs(self.smn.matrix_S01_C-read_matrix('_mom2d_Smn_CalcS01.txt'))
         self.assertTrue((err<1e-5).all())
-    
-    def test_calcS10(self):
-        self.conf.set_subintervals(3)
-        self.smn=Smn(self.conf)
-        self.smn.isCalcC=True
-        self.smn.calcS10()
+    def test_fillS10(self):
         err=abs(self.smn.matrix_S10_C-read_matrix('_mom2d_Smn_CalcS10.txt'))
         self.assertTrue((err<1e-5).all())
-    
-    def test_calcS11(self):
-        self.conf.set_subintervals(3)
-        self.smn=Smn(self.conf)
-        self.smn.isCalcC=True
-        self.smn.calcS11()
+    def test_fillS11(self):
         err=abs(self.smn.matrix_S11_C-read_matrix('_mom2d_Smn_CalcS11.txt'))
         self.assertTrue((err<1e-5).all())                
 
