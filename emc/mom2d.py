@@ -438,6 +438,18 @@ class Smn(object):
         self.iflg = conf.iflg
         self.nc = reduce(lambda r, x: r + x['n_subint'], self.list_cond, 0)
         self.isCalcC, self.isCalcL = False, False
+        
+        self.n_cond = len(set(map(lambda x: x['obj_count'], self.not_grounded_cond)))
+        self.exc_v0 = numpy.zeros((self.nc, self.n_cond))
+        beg, n, old_cond = 0, 0, self.not_grounded_cond[0]['obj_count']
+        for bound in self.list_cond:
+            end = beg + bound['n_subint']
+            if not bound['grounded']:
+                if old_cond != bound['obj_count']:
+                    n += 1
+                old_cond = bound['obj_count']
+                self.exc_v0[beg: end, n] = Coef_C
+            beg = end
 
     def _calcSmn_(self, block_S, list1, list2, bDiel):
         for bounds in self.list_cond:
@@ -509,7 +521,6 @@ class Smn(object):
         self._calcSmn_(self.matrix_S00, self.list_cond, self.list_cond, False)
         nd=self.nd_C
         if self.isCalcC and nd > 0:
-            
             self.matrix_S01_C = numpy.zeros((nc, nd), dtype=numpy.float64)
             self._calcSmn_(self.matrix_S01_C, self.list_cond, self.list_diel_C, False)
             self.matrix_S10_C = numpy.zeros((nd, nc), dtype=numpy.float64)
@@ -555,18 +566,30 @@ class Smn(object):
             self.matrix_S11_L -= numpy.dot(self.matrix_S10_L, self.matrix_S01_L)
             self.matrix_S11_L = la.inv(self.matrix_S11_L)
 
-    def solveS(self,matrix_Q):
-        if self.isCalcC and self.nd_C > 0:
-            matrix_QC[self.nc:] -= numpy.dot(self.matrix_S10_C, matrix_Q[:self.nc])
-            matrix_QC[self.nc:]  = numpy.dot(self.matrix_S11_C, matrix_Q[self.nc:])
-            matrix_QC[:self.nc] -= numpy.dot(self.matrix_S01_C, matrix_Q[self.nc:])
+    def solveSC(self):
+        matrix_Q = numpy.zeros((self.nc + self.nd_C, self.n_cond))
+        matrix_Q[:self.nc] = self.exc_v0
+        if self.nd_C > 0:
+            matrix_Q[self.nc:] -= numpy.dot(self.matrix_S10_C, matrix_Q[:self.nc])
+            matrix_Q[self.nc:]  = numpy.dot(self.matrix_S11_C, matrix_Q[self.nc:])
+            matrix_Q[:self.nc] -= numpy.dot(self.matrix_S01_C, matrix_Q[self.nc:])
         matrix_Q[:self.nc] = numpy.dot(self.matrix_S00, matrix_Q[:self.nc])
+        return matrix_Q
+
+    def solveSL(self):
+        matrix_Q = numpy.zeros((self.nc + self.nd_L, self.n_cond))
+        matrix_Q[:self.nc] = self.exc_v0
+        if self.nd_L > 0:
+            matrix_Q[self.nc:] -= numpy.dot(self.matrix_S10_L, matrix_Q[:self.nc])
+            matrix_Q[self.nc:]  = numpy.dot(self.matrix_S11_L, matrix_Q[self.nc:])
+            matrix_Q[:self.nc] -= numpy.dot(self.matrix_S01_L, matrix_Q[self.nc:])
+        matrix_Q[:self.nc] = numpy.dot(self.matrix_S00, matrix_Q[:self.nc])
+        return matrix_Q
 
 
 class RLGC():
     def __init__(self, conf):
         self.smn = Smn(conf)
-        self.n_cond = len(set(map(lambda x: x['obj_count'], self.smn.not_grounded_cond)))
 
     def update(self, conf):
         self.precondition = self.smn
@@ -590,38 +613,14 @@ class RLGC():
         self.smn.fillS()
         self.smn.factorizeS()
 
-        # Excitation vector filling
-        exc_v0 = numpy.zeros((self.smn.nc, self.n_cond))
-        beg, n, old_cond = 0, 0, self.smn.not_grounded_cond[0]['obj_count']
-        for bound in self.smn.list_cond:
-            end = beg + bound['n_subint']
-            if not bound['grounded']:
-                if old_cond != bound['obj_count']:
-                    n += 1
-                old_cond = bound['obj_count']
-                exc_v0[beg: end, n] = Coef_C
-            beg = end
-
         # Matrix Q calculating
         if self.smn.isCalcC:
-            self.matrix_QC = numpy.zeros((self.smn.nc + self.smn.nd_C, self.n_cond))
-            self.matrix_QC[:self.smn.nc] = exc_v0
-            if self.smn.nd_C > 0:
-                self.matrix_QC[self.smn.nc:] -= numpy.dot(self.smn.matrix_S10_C, self.matrix_QC[:self.smn.nc])
-                self.matrix_QC[self.smn.nc:]  = numpy.dot(self.smn.matrix_S11_C, self.matrix_QC[self.smn.nc:])
-                self.matrix_QC[:self.smn.nc] -= numpy.dot(self.smn.matrix_S01_C, self.matrix_QC[self.smn.nc:])
-            self.matrix_QC[:self.smn.nc] = numpy.dot(self.smn.matrix_S00, self.matrix_QC[:self.smn.nc])
-            self.mC = numpy.zeros((self.n_cond, self.n_cond))
+            self.matrix_QC=self.smn.solveSC()
+            self.mC = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
 
         if self.smn.isCalcL:
-            self.matrix_QL = numpy.zeros((self.smn.nc + self.smn.nd_L, self.n_cond))
-            self.matrix_QL[:self.smn.nc] = exc_v0
-            if self.smn.nd_L > 0:
-                self.matrix_QL[self.smn.nc:] -= numpy.dot(self.smn.matrix_S10_L, self.matrix_QL[:self.smn.nc])
-                self.matrix_QL[self.smn.nc:]  = numpy.dot(self.smn.matrix_S11_L, self.matrix_QL[self.smn.nc:])
-                self.matrix_QL[:self.smn.nc] -= numpy.dot(self.smn.matrix_S01_L, self.matrix_QL[self.smn.nc:])
-            self.matrix_QL[:self.smn.nc] = numpy.dot(self.smn.matrix_S00, self.matrix_QL[:self.smn.nc])
-            self.mL = numpy.zeros((self.n_cond, self.n_cond))
+            self.matrix_QL=self.smn.solveSL()
+            self.mL = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
 
         # Matrix C and L calculating
         beg, m, old_cond = 0, 0, self.smn.not_grounded_cond[0]['obj_count']
@@ -637,10 +636,10 @@ class RLGC():
                 for j, i in enumerate(xrange(beg, end)):
                     subint_len = bound['section'].getSubinterval(j, bound['n_subint']).len
                     if self.smn.isCalcC:
-                        self.matrix_QC[i, 0:self.n_cond] *= subint_len*erp
+                        self.matrix_QC[i, 0:self.smn.n_cond] *= subint_len*erp
                     if self.smn.isCalcL:
-                        self.matrix_QL[i, 0:self.n_cond] *= subint_len/mup
-                for n in xrange(self.n_cond):
+                        self.matrix_QL[i, 0:self.smn.n_cond] *= subint_len/mup
+                for n in xrange(self.smn.n_cond):
                     if self.smn.isCalcC:
                         self.mC[m, n] += self.matrix_QC[beg: end, n].sum()
                     if self.smn.isCalcL:
