@@ -17,30 +17,30 @@ d2=all_W-2.0*s2
 
 isgrounded=False
 
-config=Board()
-config.layer(h1,er1)
-config.conductor(1.e-6,d2,t,grounded=isgrounded)
-config.conductor(s2,d2,t,grounded=isgrounded)
+board=Board()
+board.layer(h1,er1)
+board.conductor(1.e-6,d2,t,grounded=isgrounded)
+board.conductor(s2,d2,t,grounded=isgrounded)
 
-config.layer(h2,er2)
-config.conductor(1e-6,d2,t,grounded=isgrounded)
-config.conductor(s2,d2,t,grounded=isgrounded)
+board.layer(h2,er2)
+board.conductor(1e-6,d2,t,grounded=isgrounded)
+board.conductor(s2,d2,t,grounded=isgrounded)
 
-config.layer(h3,er3)
-config.conductor(1e-6,d1,t,grounded=isgrounded)
-config.conductor(s1,w,t)
-config.conductor(s1,d1,t,grounded=isgrounded)
+board.layer(h3,er3)
+board.conductor(1e-6,d1,t,grounded=isgrounded)
+board.conductor(s1,w,t)
+board.conductor(s1,d1,t,grounded=isgrounded)
 
 #config.conductor(1.e-6+d1+s1,w,t,grounded=isgrounded)
 
-config.cover(h_mask,er_mask)
+board.cover(h_mask,er_mask)
 
 
-config.board2conf()
-config.structure.set_subintervals(400)
-print len(config.structure.list_diel)+len(config.structure.list_cond)
+conf=board.board2structure()
+conf.set_subintervals(100)
+print len(conf.list_diel)+len(conf.list_cond)
 
-lc=RLGC(config.structure)
+lc=RLGC(conf)
 lc.calcLC()
 if not isgrounded:
     m,n=lc.mL.shape

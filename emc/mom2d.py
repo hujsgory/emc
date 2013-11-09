@@ -4,19 +4,19 @@ from math import *
 import numpy
 import numpy.linalg as la
 import _smn
-import time
 
 eps0 = 8.854187817e-12 # dielectric constant
 Coef_C = 4*pi*eps0
 V0 = 299792458.0     # light velocity
 
-
+## \class Coord
 class Coord(object):
+
+    ## \fn __init__
+    # \brief Constructor, set coordinates x and y
+    # \param x
+    # \param y
     def __init__(self, x=0.0, y=0.0):
-        '''
-        Constructor Coord
-        @brief Set coordinates x and y
-        '''
         self.x, self.y = float(x), float(y)
 
     def __eq__(self, _coord):
@@ -41,7 +41,13 @@ class Coord(object):
         return hypot(_coord.y-self.y, _coord.x-self.x)
 
 
+## \class Section
 class Section(object):
+
+    ## \fn __init__
+    # \brief Constructor, set points beg and end
+    # \param beg Coord object, begin of the section
+    # \param end Coord object, end of the section
     def __init__(self, beg=Coord(), end=Coord()):
         if type(beg) is Coord and type(end) is Coord:
             self.beg, self.end = beg, end
@@ -96,6 +102,8 @@ class Section(object):
             raise TypeError
 
 
+## \class Structure
+# \brief Object contain a list of a conductors and a dielectrics
 class Structure(object):
     def __init__(self):
         self.list_cond = list()
@@ -121,6 +129,9 @@ class Structure(object):
         else:
             return self.list_diel[self.iter_idx-len(self.list_cond)-1]
 
+    ## \fn intersection
+    # \brief The function checking the two boundaries on intersection
+    # \param sect1 \param sect2 two object of Section type
     def intersection(self, sect1, sect2):
         # Coeficients of Ax+By+D=0
         a1 = -sect1.dy
@@ -159,7 +170,9 @@ class Structure(object):
             if fmin1 < fmax2 and fmin2 < fmax1:
                 return True
         return False
-
+    
+    ## \fn check_intersection
+    # \brief The function checking the added boundary on intersection with other boundaries 
     def check_intersection(self, section):
         return reduce(lambda r, bound:
                       r or self.intersection(bound['section'], section),
@@ -168,8 +181,10 @@ class Structure(object):
                       r or self.intersection(bound['section'], section),
                       self.list_diel, False)
 
-    # n_subint: number of bound_m's subintervals
-
+    ## \fn add
+    # \brief Boundary addition
+    # \param section - Section() object
+    # \param n_subint - number of subintervals
     def add(self, section, n_subint=1):
         if type(section) is Section and type(n_subint) is int:
             if self.check_intersection(section):
@@ -187,11 +202,13 @@ class Structure(object):
             self.sect_count += 1
         else:
             raise TypeError
-    # mat_param: erp - relative permittivity on
-    #   right side of section,  erm - on left side
-    # tdp, tdm - dielectric loss tangent
-    # mup, mum - relative magnetic permeability
 
+    ## \fn cond
+    # \brief Conductor properties setting
+    # \param mat_param - dictionary which can have following entries:
+    #  erp - relative permittivity on right side of section,  erm - on left side
+    #  tdp, tdm - dielectric loss tangent
+    #  mup, mum - relative magnetic permeability
     def cond(self, **mat_param):
         self.grounded = False
         self.mat_param = mat_param
@@ -217,7 +234,7 @@ class Structure(object):
             bound['n_subint'] = n_subint
 
 
-class Board():
+class Board(object):
     def __init__(self):
         self.layers = list()
         self.medium = {'er': 1.0, 'td': 0.0, 'mu': 1.0}
@@ -269,8 +286,8 @@ class Board():
                             'cond': list()})
 
 # FIXME: need to add approximate comparison for float numbers
-    def board2conf(self):
-        self.structure = Structure()
+    def board2structure(self):
+        structure = Structure()
         # Calculation of structure's right coordinate x
 # FIXME: x['cond'][0]['space'] may be raised exception
         max_x = max(map(lambda layer:
@@ -306,9 +323,9 @@ class Board():
                 # Conductor-dielectric bounds building
                 for cond in layer['cond']:
                     if not cond['grounded']:
-                        self.structure.cond(erp=er_bottom, tdp=td_bottom, mup=mu_bottom)
+                        structure.cond(erp=er_bottom, tdp=td_bottom, mup=mu_bottom)
                     else:
-                        self.structure.ground_cond(erp=er_bottom, tdp=td_bottom, mup=mu_bottom)
+                        structure.ground_cond(erp=er_bottom, tdp=td_bottom, mup=mu_bottom)
                     y_cond_bottom = y_layer       - cond['depth']
                     y_cond_top    = y_cond_bottom + cond['thickness']
                     x_cond_left  +=                 cond['space']
@@ -318,42 +335,42 @@ class Board():
                         if y_cond_top < y_layer: beg = Coord(x_cond_left,   y_cond_top)
                         else: beg = Coord(x_cond_left, y_layer)
                         end = Coord(x_cond_left, y_cond_bottom)
-                        self.structure.add(Section(beg, end))
+                        structure.add(Section(beg, end))
                         beg = Coord(x_cond_right, y_cond_bottom)
                         if y_cond_top < y_layer:
                             end = Coord(x_cond_right, y_cond_top)
                         else:
                             end = Coord(x_cond_right, y_layer)
-                        self.structure.add(Section(beg, end))
+                        structure.add(Section(beg, end))
                     beg = Coord(x_cond_left,   y_cond_bottom)
                     end = Coord(x_cond_right,  y_cond_bottom)
-                    self.structure.add(Section(beg, end))
+                    structure.add(Section(beg, end))
                     if y_cond_top >= y_layer:
-                        self.structure.mat_param = {'erp': er_top, 'tdp': td_top, 'mup': mu_top}
+                        structure.mat_param = {'erp': er_top, 'tdp': td_top, 'mup': mu_top}
                     if y_cond_top >  y_layer:
                         beg = Coord(x_cond_right,  y_layer)
                         end = Coord(x_cond_right,  y_cond_top)
-                        self.structure.add(Section(beg, end))
+                        structure.add(Section(beg, end))
                         beg = Coord(x_cond_left,   y_cond_top)
                         end = Coord(x_cond_left,   y_layer)
-                        self.structure.add(Section(beg, end))
+                        structure.add(Section(beg, end))
                     beg = Coord(x_cond_right,  y_cond_top)
                     end = Coord(x_cond_left,   y_cond_top)
-                    self.structure.add(Section(beg, end))
+                    structure.add(Section(beg, end))
                     if cond['depth'] > cond['thickness']:
                         diel_sect.append((x_cond_left - cond['space'],  x_cond_right))
                     else:
                         diel_sect.append((x_cond_left - cond['space'],  x_cond_left))
                     x_cond_left = x_cond_right
                 # Dielectric-dielectric bounds building
-                self.structure.diel(erp=er_bottom, tdp=td_bottom, mup=mu_bottom, erm=er_top, tdm=td_top, mum=mu_top)
+                structure.diel(erp=er_bottom, tdp=td_bottom, mup=mu_bottom, erm=er_top, tdm=td_top, mum=mu_top)
                 for sect in diel_sect:
                     beg = Coord(sect[0],  y_layer)
                     end = Coord(sect[1],  y_layer)
-                    self.structure.add(Section(beg, end))
+                    structure.add(Section(beg, end))
                 beg = Coord(x_cond_right, y_layer)
                 end = Coord(max_x, y_layer)
-                self.structure.add(Section(beg, end))
+                structure.add(Section(beg, end))
             # Cover building
             else:
                 layer['cover'] = list()
@@ -401,7 +418,7 @@ class Board():
                             continue
                         j += 1
 
-                self.structure.diel(erp=er_bottom,
+                structure.diel(erp=er_bottom,
                                     tdp=td_bottom,
                                     mup=mu_bottom,
                                     erm=er_top,
@@ -412,21 +429,21 @@ class Board():
                     x_right = x_left + section_cur['width']
                     beg = Coord(x_left,  y_layer + section_cur['thickness'])
                     end = Coord(x_right, y_layer + section_cur['thickness'])
-                    self.structure.add(Section(beg, end))
+                    structure.add(Section(beg, end))
                     if section_cur['thickness'] != section_next['thickness']:
                         beg = Coord(x_right, y_layer + section_cur ['thickness'])
                         end = Coord(x_right, y_layer + section_next['thickness'])
-                        self.structure.add(Section(beg, end))
+                        structure.add(Section(beg, end))
                     x_left = x_right
                 x_right = x_left + cover[-1]['width']
                 beg = Coord(x_left,  y_layer + cover[-1]['thickness'])
                 end = Coord(x_right, y_layer + cover[-1]['thickness'])
-                self.structure.add(Section(beg, end))
-        return self.structure
+                structure.add(Section(beg, end))
+        return structure
 
-
+## \class Smn
+# \brief Matrix which binds a vector of charges and a vector of potential
 class Smn(object):
-    # list_bounds, iflg, matrix_S, m_size
     def __init__(self, conf):
         if type(conf) is not Structure:
             raise TypeError
@@ -440,6 +457,8 @@ class Smn(object):
         self.isCalcC, self.isCalcL = False, False
         
         self.n_cond = len(set(map(lambda x: x['obj_count'], self.not_grounded_cond)))
+        # \var exc_v0
+        # \brief Vector of potential
         self.exc_v0 = numpy.zeros((self.nc, self.n_cond))
         beg, n, old_cond = 0, 0, self.not_grounded_cond[0]['obj_count']
         for bound in self.list_cond:
@@ -470,7 +489,8 @@ class Smn(object):
         else:
             raise ValueError
 
-    # fill in additional row and column if infinite ground is not exist
+    # \fn calcLast
+    # \brief fill in additional row and column if infinite ground is not exist
     def calcLast(self):
         if not self.iflg:
             lastC = self.nd_C-1
@@ -515,7 +535,7 @@ class Smn(object):
             nd = 1
         return reduce(lambda r, x: r + x['n_subint'], self.list_diel_L, nd)
 
-    def fillS(self):
+    def fill(self):
         nc=self.nc
         self.matrix_S00 = numpy.zeros((nc, nc), dtype=numpy.float64)
         self._calcSmn_(self.matrix_S00, self.list_cond, self.list_cond, False)
@@ -555,7 +575,7 @@ class Smn(object):
                     m += 1
         self.calcLast()
 
-    def factorizeS(self):
+    def factorize(self):
         self.matrix_S00 = la.inv(self.matrix_S00)
         if self.isCalcC and self.nd_C > 0:
             self.matrix_S10_C = numpy.dot(self.matrix_S10_C, self.matrix_S00)
@@ -566,7 +586,7 @@ class Smn(object):
             self.matrix_S11_L -= numpy.dot(self.matrix_S10_L, self.matrix_S01_L)
             self.matrix_S11_L = la.inv(self.matrix_S11_L)
 
-    def solveSC(self):
+    def solve_C(self):
         matrix_Q = numpy.zeros((self.nc + self.nd_C, self.n_cond))
         matrix_Q[:self.nc] = self.exc_v0
         if self.nd_C > 0:
@@ -576,7 +596,7 @@ class Smn(object):
         matrix_Q[:self.nc] = numpy.dot(self.matrix_S00, matrix_Q[:self.nc])
         return matrix_Q
 
-    def solveSL(self):
+    def solve_L(self):
         matrix_Q = numpy.zeros((self.nc + self.nd_L, self.n_cond))
         matrix_Q[:self.nc] = self.exc_v0
         if self.nd_L > 0:
@@ -586,42 +606,114 @@ class Smn(object):
         matrix_Q[:self.nc] = numpy.dot(self.matrix_S00, matrix_Q[:self.nc])
         return matrix_Q
 
+    ## \fn iterative
+    # \brief Stabilized bi-conjugate gradient method with preconditioning (BiCGStab)
+    # \param M Smn object with factorized matrixes S
+    def iterative(self, M):
+        Tol = 1.e-6
+        nc = self.nc
+        nd = self.nd_C
+        alpha = numpy.ones(self.n_cond)
+        beta = numpy.zeros(self.n_cond)
+        rho = numpy.zeros(self.n_cond)
+        rho_old = numpy.ones(self.n_cond)
+        omega = numpy.ones(self.n_cond)
+        A00 = self.matrix_S00
+        A01 = self.matrix_S01_C
+        A10 = self.matrix_S10_C
+        A11 = self.matrix_S11_C
+        M00 = M.matrix_S00
+        M01 = M.matrix_S01_C
+        M10 = M.matrix_S10_C
+        M11 = M.matrix_S11_C
+        X = numpy.ones((nc+nd, self.n_cond))
+        V = numpy.zeros((nc+nd, self.n_cond))
+        P = numpy.zeros((nc+nd, self.n_cond))
+        R = numpy.zeros((nc+nd, self.n_cond))
+        R[:nc] = self.exc_v0
+        R[:nc] -= numpy.dot(A00, X[:nc]) + numpy.dot(A01, X[nc:])
+        R[nc:] -= numpy.dot(A10, X[:nc]) + numpy.dot(A11, X[nc:])
+        Rt = R.copy()
+        S = numpy.zeros((nc+nd, self.n_cond))
+        T = numpy.zeros((nc+nd, self.n_cond))
+        normR0 = la.norm(R)
+        for iter in xrange(30):
+            for i in xrange(self.n_cond):
+                rho[i] = numpy.dot(Rt[:,i], R[:,i])
+                if rho[i] == 0.0:
+                    raise ValueError
+                beta[i] = (rho[i]/rho_old[i])*(alpha[i]/omega[i])
+            P = R + beta*(P - omega*V)
+            Pt = P.copy()
+            Pt[nc:] -= numpy.dot(M10, Pt[:nc])
+            Pt[nc:]  = numpy.dot(M11, Pt[nc:])
+            Pt[:nc] -= numpy.dot(M01, Pt[nc:])
+            Pt[:nc]  = numpy.dot(M00, Pt[:nc])
+            V[:nc] = numpy.dot(A00, Pt[:nc]) + numpy.dot(A01, Pt[nc:])
+            V[nc:] = numpy.dot(A10, Pt[:nc]) + numpy.dot(A11, Pt[nc:])
+            for i in xrange(self.n_cond):
+                alpha[i] = rho[i]/numpy.dot(Rt[:,i], V[:,i])
+                S[:,i] = R[:,i] - alpha[i]*V[:,i]
+                X[:,i] += alpha[i]*Pt[:,i]
+            St = S.copy()
+            St[nc:] -= numpy.dot(M10, St[:nc])
+            St[nc:]  = numpy.dot(M11, St[nc:])
+            St[:nc] -= numpy.dot(M01, St[nc:])
+            St[:nc]  = numpy.dot(M00, St[:nc])
+            T[:nc] = numpy.dot(A00, St[:nc]) + numpy.dot(A01, St[nc:])
+            T[nc:] = numpy.dot(A10, St[:nc]) + numpy.dot(A11, St[nc:])
+            for i in xrange(self.n_cond):
+                omega[i] = numpy.dot(T[:,i], S[:,i])/numpy.dot(T[:,i], T[:,i])
+                X[:,i] += omega[i]*St[:,i]
+                R[:,i] = S[:,i] - omega[i]*T[:,i]
+            if la.norm(R)/normR0 <= Tol:
+                break
+            rho_old = rho
+        return X
 
-class RLGC():
+
+class RLGC(object):
     def __init__(self, conf):
         self.smn = Smn(conf)
 
     def update(self, conf):
         self.precondition = self.smn
         self.smn = Smn(conf)
-        self.smn.fillS()
-        
+        self.smn.isCalcC = self.precondition.isCalcC
+        self.smn.isCalcL = self.precondition.isCalcL
+        self.smn.fill()
+        self.matrix_QC=self.smn.iterative(self.precondition)
+        self._calcLC_()
 
     def calcC(self):
         self.smn.isCalcC = True
+        self.smn.isCalcL = False
+        self.smn.fill()
+        self.smn.factorize()
+        self.matrix_QC=self.smn.solve_C()
+        self.mC = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
         self._calcLC_()
 
     def calcL(self):
+        self.smn.isCalcC = False
         self.smn.isCalcL = True
+        self.smn.fill()
+        self.smn.factorize()
+        self.matrix_QL=self.smn.solve_L()
+        self.mL = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
         self._calcLC_()
 
     def calcLC(self):
         self.smn.isCalcC, self.smn.isCalcL = True, True
+        self.smn.fill()
+        self.smn.factorize()
+        self.matrix_QC=self.smn.solve_C()
+        self.matrix_QL=self.smn.solve_L()
+        self.mC = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
+        self.mL = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
         self._calcLC_()
 
     def _calcLC_(self):
-        self.smn.fillS()
-        self.smn.factorizeS()
-
-        # Matrix Q calculating
-        if self.smn.isCalcC:
-            self.matrix_QC=self.smn.solveSC()
-            self.mC = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
-
-        if self.smn.isCalcL:
-            self.matrix_QL=self.smn.solveSL()
-            self.mL = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
-
         # Matrix C and L calculating
         beg, m, old_cond = 0, 0, self.smn.not_grounded_cond[0]['obj_count']
         for bound in self.smn.list_cond:

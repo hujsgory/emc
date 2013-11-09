@@ -58,7 +58,7 @@ class Test_Smn(unittest.TestCase):
         self.conf.set_subintervals(3)
         self.smn=Smn(self.conf)
         self.smn.isCalcC=True
-        self.smn.fillS()
+        self.smn.fill()
     def test_fillS00(self):
         err=abs(self.smn.matrix_S00-read_matrix('_mom2d_Smn_CalcS00.txt'))
         self.assertTrue((err<1e-5).all())
@@ -70,7 +70,7 @@ class Test_Smn(unittest.TestCase):
         self.assertTrue((err<1e-5).all())
     def test_fillS11(self):
         err=abs(self.smn.matrix_S11_C-read_matrix('_mom2d_Smn_CalcS11.txt'))
-        self.assertTrue((err<1e-5).all())                
+        self.assertTrue((err<1e-5).all())
 
 
 class Test_Conf(unittest.TestCase):
@@ -155,7 +155,7 @@ class Test_Board1(unittest.TestCase):
         self.assertRaises(ValueError,self.board.conductor,space=3e-3,width=1e-3,thickness=400e-6,depth=-0.1)
     @unittest.skip('Variable max_x is local')
     def test_board2conf(self):
-        self.board.board2conf()
+        self.board.board2structure()
         self.assertAlmostEqual(self.board.max_x,2.25e-3,15)
 
 
@@ -166,7 +166,7 @@ class Test_Board2(unittest.TestCase):
         self.board.conductor(800e-6,401e-6,18e-6)
         self.board.medium['mu']=1.00000037
     def test_1(self):
-        self.board.board2conf()
+        conf=self.board.board2structure()
         x0,x1,x2,x3=0.0,800e-6,1201e-6,2001e-6
         y1,y2=990e-6,1008e-6
         er1,er2=4.3,1.0
@@ -178,11 +178,11 @@ class Test_Board2(unittest.TestCase):
                {'section':Section(Coord(x2,y2),Coord(x1,y2)),'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':3,'grounded':False}]
         answ2=[{'section':Section(Coord(x0,y1),Coord(x1,y1)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':2,'sect_count':0},\
                {'section':Section(Coord(x2,y1),Coord(x3,y1)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':2,'sect_count':1}]
-        self.assertTrue(self.board.structure.list_cond==answ1)
-        self.assertTrue(self.board.structure.list_diel==answ2)
+        self.assertTrue(conf.list_cond==answ1)
+        self.assertTrue(conf.list_diel==answ2)
     def test_2(self):
         self.board.cover(31e-6,4.8)
-        self.board.board2conf()
+        conf=self.board.board2structure()
         er1,er2=4.8,1.0
         td1,td2=0.0,0.0
         mu1,mu2=1.0,1.00000037
@@ -195,6 +195,6 @@ class Test_Board2(unittest.TestCase):
               {'section':Section(Coord(x2,y3),Coord(x2,y2)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':3},\
               {'section':Section(Coord(x2,y2),Coord(x3,y2)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':4},\
               ]
-        self.assertTrue(self.board.structure.list_diel[2:]==answ)
+        self.assertTrue(conf.list_diel[2:]==answ)
 
 unittest.main()
