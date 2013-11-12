@@ -610,7 +610,7 @@ class Smn(object):
     # \brief Stabilized bi-conjugate gradient method with preconditioning (BiCGStab)
     # \param M Smn object with factorized matrixes S
     def iterative(self, M):
-        Tol = 1.e-6
+        Tol = 1e-16
         nc = self.nc
         nd = self.nd_C
         alpha = numpy.ones(self.n_cond)
@@ -630,9 +630,9 @@ class Smn(object):
         V = numpy.zeros((nc+nd, self.n_cond))
         P = numpy.zeros((nc+nd, self.n_cond))
         R = numpy.zeros((nc+nd, self.n_cond))
-        R[:nc] = self.exc_v0
-        R[:nc] -= numpy.dot(A00, X[:nc]) + numpy.dot(A01, X[nc:])
-        R[nc:] -= numpy.dot(A10, X[:nc]) + numpy.dot(A11, X[nc:])
+        # r = b - Ax, where b - vector of right-hand members
+        R[:nc] = self.exc_v0 - numpy.dot(A00, X[:nc]) - numpy.dot(A01, X[nc:])
+        R[nc:] = -numpy.dot(A10, X[:nc]) - numpy.dot(A11, X[nc:])
         Rt = R.copy()
         S = numpy.zeros((nc+nd, self.n_cond))
         T = numpy.zeros((nc+nd, self.n_cond))
@@ -655,6 +655,8 @@ class Smn(object):
                 alpha[i] = rho[i]/numpy.dot(Rt[:,i], V[:,i])
                 S[:,i] = R[:,i] - alpha[i]*V[:,i]
                 X[:,i] += alpha[i]*Pt[:,i]
+            if la.norm(S)/normR0 <= Tol:
+                break
             St = S.copy()
             St[nc:] -= numpy.dot(M10, St[:nc])
             St[nc:]  = numpy.dot(M11, St[nc:])
@@ -667,7 +669,7 @@ class Smn(object):
                 X[:,i] += omega[i]*St[:,i]
                 R[:,i] = S[:,i] - omega[i]*T[:,i]
             if la.norm(R)/normR0 <= Tol:
-                break
+                 break
             rho_old = rho
         return X
 
@@ -683,6 +685,7 @@ class RLGC(object):
         self.smn.isCalcL = self.precondition.isCalcL
         self.smn.fill()
         self.matrix_QC=self.smn.iterative(self.precondition)
+        self.mC[:,:] = 0.0
         self._calcLC_()
 
     def calcC(self):
