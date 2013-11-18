@@ -16,6 +16,7 @@ structure.set_subintervals(100)
 lc=RLGC(structure)
 lc.calcC()
 
+t=5e-6
 w = 1.5e-3
 er = 5.5
 board = Board()

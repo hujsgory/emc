@@ -690,14 +690,17 @@ class RLGC(object):
 
     def calcC(self):
         self.smn.isCalcC = True
+        tmp_flag = self.smn.isCalcL
         self.smn.isCalcL = False
         self.smn.fill()
         self.smn.factorize()
         self.matrix_QC=self.smn.solve_C()
         self.mC = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
         self._calcLC_()
+        self.smn.isCalcL=tmp_flag
 
     def calcL(self):
+        tmp_flag = self.smn.isCalcC
         self.smn.isCalcC = False
         self.smn.isCalcL = True
         self.smn.fill()
@@ -705,6 +708,7 @@ class RLGC(object):
         self.matrix_QL=self.smn.solve_L()
         self.mL = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
         self._calcLC_()
+        self.smn.isCalcC = tmp_flag
 
     def calcLC(self):
         self.smn.isCalcC, self.smn.isCalcL = True, True
