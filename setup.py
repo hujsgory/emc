@@ -7,7 +7,7 @@ c_ext=Extension("_smn",
                 sources      = ["emc/_smn.cpp"])
 
 setup(name         =  'emc'                ,
-      version      =  '0.0.1'              ,
+      version      =  '0.0.2'              ,
       packages     = ['emc']               ,
       package_dir  = {'emc':'emc'}    ,
       package_data = {'emc':['test/*.txt','test/*.py','examples/*']},

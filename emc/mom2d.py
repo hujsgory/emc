@@ -441,6 +441,22 @@ class Board(object):
                 structure.add(Section(beg, end))
         return structure
 
+
+## \class Matrix
+#  \brief Container for blocks of matrix S and related methods
+class Matrix(object):
+    def __init__(self, A00, A01=None, A10=None, A11=None):
+        self.A00, self.A01, self.A10, self.A11 = A00, A01, A10, A11
+
+    def solve(self,b):
+        x = b.copy()
+        if self.A01 and self.A10 and self.A11:
+            x[nc:] -= numpy.dot(self.matrix_S10_C, x[nc])
+            x[nc:]  = numpy.dot(self.matrix_S11_C, x[nc:])
+            x[:nc] -= numpy.dot(self.matrix_S01_C, x[nc:])
+        x[:self.nc] = numpy.dot(self.matrix_S00, x[:self.nc])
+
+
 ## \class Smn
 # \brief Matrix which binds a vector of charges and a vector of potential
 class Smn(object):
@@ -606,22 +622,28 @@ class Smn(object):
         matrix_Q[:self.nc] = numpy.dot(self.matrix_S00, matrix_Q[:self.nc])
         return matrix_Q
 
+    def iterative_C(self, M):
+        A01,A10,A11=None,None,None
+        if self.nd_C > 0:
+            A01 = self.matrix_S01_C
+            A10 = self.matrix_S10_C
+            A11 = self.matrix_S11_C
+        return self._iterative_(self.nd_C, M, A01, A10, A11)
+
+    def iterative_L(self, M):
+        A01,A10,A11=None,None,None
+        if self.nd_L > 0:
+            A01 = self.matrix_S01_L
+            A10 = self.matrix_S10_L
+            A11 = self.matrix_S11_L
+        return self._iterative_(self.nd_L, M, A01, A10, A11)
+
     ## \fn iterative
     # \brief Stabilized bi-conjugate gradient method with preconditioning (BiCGStab)
     # \param M Smn object with factorized matrixes S
-    def iterative(self, M):
-        Tol = 1e-16
+    def _iterative_(self, nd, M, A01, A10, A11, M00k):
         nc = self.nc
-        nd = self.nd_C
-        alpha = numpy.ones(self.n_cond)
-        beta = numpy.zeros(self.n_cond)
-        rho = numpy.zeros(self.n_cond)
-        rho_old = numpy.ones(self.n_cond)
-        omega = numpy.ones(self.n_cond)
         A00 = self.matrix_S00
-        A01 = self.matrix_S01_C
-        A10 = self.matrix_S10_C
-        A11 = self.matrix_S11_C
         M00 = M.matrix_S00
         M01 = M.matrix_S01_C
         M10 = M.matrix_S10_C
@@ -637,7 +659,14 @@ class Smn(object):
         S = numpy.zeros((nc+nd, self.n_cond))
         T = numpy.zeros((nc+nd, self.n_cond))
         normR0 = la.norm(R)
-        for iter in xrange(30):
+        alpha = numpy.ones(self.n_cond)
+        beta = numpy.zeros(self.n_cond)
+        rho = numpy.zeros(self.n_cond)
+        rho_old = numpy.ones(self.n_cond)
+        omega = numpy.ones(self.n_cond)
+        Tol = 1e-16
+        max_iter = 30
+        for iter in xrange(max_iter):
             for i in xrange(self.n_cond):
                 rho[i] = numpy.dot(Rt[:,i], R[:,i])
                 if rho[i] == 0.0:
@@ -645,9 +674,10 @@ class Smn(object):
                 beta[i] = (rho[i]/rho_old[i])*(alpha[i]/omega[i])
             P = R + beta*(P - omega*V)
             Pt = P.copy()
-            Pt[nc:] -= numpy.dot(M10, Pt[:nc])
-            Pt[nc:]  = numpy.dot(M11, Pt[nc:])
-            Pt[:nc] -= numpy.dot(M01, Pt[nc:])
+            if nd>0:
+                Pt[nc:] -= numpy.dot(M10, Pt[:nc])
+                Pt[nc:]  = numpy.dot(M11, Pt[nc:])
+                Pt[:nc] -= numpy.dot(M01, Pt[nc:])
             Pt[:nc]  = numpy.dot(M00, Pt[:nc])
             V[:nc] = numpy.dot(A00, Pt[:nc]) + numpy.dot(A01, Pt[nc:])
             V[nc:] = numpy.dot(A10, Pt[:nc]) + numpy.dot(A11, Pt[nc:])
@@ -658,9 +688,10 @@ class Smn(object):
             if la.norm(S)/normR0 <= Tol:
                 break
             St = S.copy()
-            St[nc:] -= numpy.dot(M10, St[:nc])
-            St[nc:]  = numpy.dot(M11, St[nc:])
-            St[:nc] -= numpy.dot(M01, St[nc:])
+            if nd>0:
+                St[nc:] -= numpy.dot(M10, St[:nc])
+                St[nc:]  = numpy.dot(M11, St[nc:])
+                St[:nc] -= numpy.dot(M01, St[nc:])
             St[:nc]  = numpy.dot(M00, St[:nc])
             T[:nc] = numpy.dot(A00, St[:nc]) + numpy.dot(A01, St[nc:])
             T[nc:] = numpy.dot(A10, St[:nc]) + numpy.dot(A11, St[nc:])
@@ -679,13 +710,19 @@ class RLGC(object):
         self.smn = Smn(conf)
 
     def update(self, conf):
+        isCalcC=self.smn.isCalcC
+        isCalcL=self.smn.isCalcL
         self.precondition = self.smn
         self.smn = Smn(conf)
-        self.smn.isCalcC = self.precondition.isCalcC
-        self.smn.isCalcL = self.precondition.isCalcL
+        self.smn.isCalcC = isCalcC
+        self.smn.isCalcL = isCalcL
         self.smn.fill()
-        self.matrix_QC=self.smn.iterative(self.precondition)
-        self.mC[:,:] = 0.0
+        if isCalcC:
+            self.matrix_QC=self.smn.iterative_C(self.precondition)
+            self.mC[:,:] = 0.0
+        if isCalcL:
+            self.matrix_QL=self.smn.iterative_L(self.precondition)
+            self.mL[:,:] = 0.0
         self._calcLC_()
 
     def calcC(self):

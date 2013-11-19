@@ -14,7 +14,7 @@ board.conductor(s, w, t)
 structure=board.board2structure()
 structure.set_subintervals(100)
 lc=RLGC(structure)
-lc.calcC()
+lc.calcL()
 
 w=1.5e-3
 er=5.5
@@ -25,6 +25,6 @@ board.conductor(s, w, t)
 structure = board.board2structure()
 structure.set_subintervals(100)
 lc.update(structure)
-print "iterative: \n", lc.mC
-lc.calcC()
-print "direct: \n", lc.mC
+print "iterative: \n", lc.mL
+lc.calcL()
+print "direct: \n", lc.mL
