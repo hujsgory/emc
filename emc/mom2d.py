@@ -446,15 +446,36 @@ class Board(object):
 #  \brief Container for blocks of matrix S and related methods
 class Matrix(object):
     def __init__(self, A00, A01=None, A10=None, A11=None):
-        self.A00, self.A01, self.A10, self.A11 = A00, A01, A10, A11
+        if type(A00) is numpy.ndarray:
+            self.A00 = A00
+            self.nc = A00.shape[0]
+        else:
+            raise ValueError
+        if type(A01) is numpy.ndarray and type(A10) is numpy.ndarray and type(A11) is numpy.ndarray:
+            if A00.shape[0] == A10.shape[0] and A01.shape[0] == A11.shape[0] and A00.shape[1] == A01.shape[1] and A10.shape[1] == A11.shape[1]:
+                self.A01, self.A10, self.A11 = A01, A10, A11
+                self.nd=A01.shape[0]
+            else:
+                self.nd = 0
 
-    def solve(self,b):
+    def factorize(self):
+        self.matrix_S00 = la.inv(self.matrix_S00)
+        if self.nd > 0:
+            self.A10 = numpy.dot(self.A10, self.A00)
+            self.A11 -= numpy.dot(self.A10, self.A01)
+            self.A11 = la.inv(self.A11)
+
+    def solve(self, b):
         x = b.copy()
-        if self.A01 and self.A10 and self.A11:
-            x[nc:] -= numpy.dot(self.matrix_S10_C, x[nc])
-            x[nc:]  = numpy.dot(self.matrix_S11_C, x[nc:])
-            x[:nc] -= numpy.dot(self.matrix_S01_C, x[nc:])
-        x[:self.nc] = numpy.dot(self.matrix_S00, x[:self.nc])
+        if self.nd > 0:
+            x[nc:] -= numpy.dot(self.A10, x[nc])
+            x[nc:]  = numpy.dot(self.A11, x[nc:])
+            x[:nc] -= numpy.dot(self.A01, x[nc:])
+        x[:self.nc] = numpy.dot(self.A00, x[:self.nc])
+        return x
+
+    def iterative(self, M, b):
+        pass
 
 
 ## \class Smn
@@ -623,7 +644,7 @@ class Smn(object):
         return matrix_Q
 
     def iterative_C(self, M):
-        A01,A10,A11=None,None,None
+        A01, A10, A11 = None, None, None
         if self.nd_C > 0:
             A01 = self.matrix_S01_C
             A10 = self.matrix_S10_C
@@ -641,7 +662,7 @@ class Smn(object):
     ## \fn iterative
     # \brief Stabilized bi-conjugate gradient method with preconditioning (BiCGStab)
     # \param M Smn object with factorized matrixes S
-    def _iterative_(self, nd, M, A01, A10, A11, M00k):
+    def _iterative_(self, nd, M, A01, A10, A11, M01):
         nc = self.nc
         A00 = self.matrix_S00
         M00 = M.matrix_S00
