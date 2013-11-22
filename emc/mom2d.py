@@ -9,6 +9,7 @@ eps0 = 8.854187817e-12 # dielectric constant
 Coef_C = 4*pi*eps0
 V0 = 299792458.0     # light velocity
 
+
 ## \class Coord
 class Coord(object):
 
@@ -229,10 +230,24 @@ class Structure(object):
         self.obj_count += 1
         self.sect_count = 0
 
+    ## \function set_subintervals
+    #  \brief set number of a segments for the each boundary of the structure
+    #  \param n_subint number of the segments
     def set_subintervals(self, n_subint):
         for bound in self:
             bound['n_subint'] = n_subint
 
+    ## \function autosegment
+    #  \brief calculate and set number of a segments to length subinterval for the each boundary of the structure
+    #  \param 
+    def auto_segment(self, length):
+        pass
+
+    def adaptive_segment(self, criterion):
+        pass
+
+    def smart_segment(self):
+        pass
 
 class Board(object):
     def __init__(self):
@@ -445,37 +460,100 @@ class Board(object):
 ## \class Matrix
 #  \brief Container for blocks of matrix S and related methods
 class Matrix(object):
-    def __init__(self, A00, A01=None, A10=None, A11=None):
+    def __init__(self, A00, A01, A10, A11):
         if type(A00) is numpy.ndarray:
             self.A00 = A00
             self.nc = A00.shape[0]
         else:
             raise ValueError
         if type(A01) is numpy.ndarray and type(A10) is numpy.ndarray and type(A11) is numpy.ndarray:
-            if A00.shape[0] == A10.shape[0] and A01.shape[0] == A11.shape[0] and A00.shape[1] == A01.shape[1] and A10.shape[1] == A11.shape[1]:
+            if A00.shape[0] == A01.shape[0] and A10.shape[0] == A11.shape[0] and A00.shape[1] == A10.shape[1] and A01.shape[1] == A11.shape[1]:
                 self.A01, self.A10, self.A11 = A01, A10, A11
                 self.nd=A01.shape[0]
             else:
                 self.nd = 0
 
     def factorize(self):
-        self.matrix_S00 = la.inv(self.matrix_S00)
         if self.nd > 0:
             self.A10 = numpy.dot(self.A10, self.A00)
             self.A11 -= numpy.dot(self.A10, self.A01)
             self.A11 = la.inv(self.A11)
 
     def solve(self, b):
+        nc = self.nc
+        nd = self.nd
         x = b.copy()
         if self.nd > 0:
-            x[nc:] -= numpy.dot(self.A10, x[nc])
+            x[nc:] -= numpy.dot(self.A10, x[:nc])
             x[nc:]  = numpy.dot(self.A11, x[nc:])
             x[:nc] -= numpy.dot(self.A01, x[nc:])
-        x[:self.nc] = numpy.dot(self.A00, x[:self.nc])
+        x[:nc] = numpy.dot(self.A00, x[:nc])
         return x
 
+    # c = A*b
+    def dot(self, b, c=None):
+        nc = self.nc
+        nd = self.nd
+        if c == None:
+            c = numpy.zeros((self.nc+self.nd, b.shape[1]))
+        if nd > 0:
+            c[:nc] = numpy.dot(self.A00, b[:nc]) + numpy.dot(self.A01, b[nc:])
+            c[nc:] = numpy.dot(self.A10, b[:nc]) + numpy.dot(self.A11, b[nc:])
+        else:
+            c[:] = numpy.dot(self.A00, b)
+        return c
+
+    ## \function iterative
+    #  \brief Stabilized bi-conjugate gradient method with preconditioning (BiCGStab)
+    #  \param M Matrix object with factorized matrixes S
+    #  \param b vector of right-hand members
     def iterative(self, M, b):
-        pass
+        nc = self.nc
+        nd = self.nd
+        n_cond = b.shape[1]
+        A = self
+        X = numpy.ones((nc+nd, n_cond))
+        V = numpy.zeros((nc+nd, n_cond))
+        P = numpy.zeros((nc+nd, n_cond))
+        R = numpy.zeros((nc+nd, n_cond))
+        # r = b - Ax, where 
+        R = b - A.dot(X)
+        Rt = R.copy()
+        S = numpy.zeros((nc+nd, n_cond))
+        T = numpy.zeros((nc+nd, n_cond))
+        normR0 = la.norm(R)
+        alpha = numpy.ones(n_cond)
+        beta = numpy.zeros(n_cond)
+        rho = numpy.zeros(n_cond)
+        rho_old = numpy.ones(n_cond)
+        omega = numpy.ones(n_cond)
+        Tol = 1e-16
+        max_iter = 30
+        for iter in xrange(max_iter):
+            for i in xrange(n_cond):
+                rho[i] = numpy.dot(Rt[:,i], R[:,i])
+                if rho[i] == 0.0:
+                    raise ValueError
+                beta[i] = (rho[i]/rho_old[i])*(alpha[i]/omega[i])
+            P = R + beta*(P - omega*V)
+            Pt = M.solve(P)
+            A.dot(Pt, V)
+            for i in xrange(n_cond):
+                alpha[i] = rho[i]/numpy.dot(Rt[:,i], V[:,i])
+                S[:,i] = R[:,i] - alpha[i]*V[:,i]
+                X[:,i] += alpha[i]*Pt[:,i]
+            if la.norm(S)/normR0 <= Tol:
+                break
+            St = M.solve(S)
+            A.dot(St, T)
+            for i in xrange(n_cond):
+                omega[i] = numpy.dot(T[:,i], S[:,i])/numpy.dot(T[:,i], T[:,i])
+                X[:,i] += omega[i]*St[:,i]
+                R[:,i] = S[:,i] - omega[i]*T[:,i]
+            if la.norm(R)/normR0 <= Tol:
+                 break
+            rho_old = rho
+        return X
 
 
 ## \class Smn
@@ -492,7 +570,7 @@ class Smn(object):
         self.iflg = conf.iflg
         self.nc = reduce(lambda r, x: r + x['n_subint'], self.list_cond, 0)
         self.isCalcC, self.isCalcL = False, False
-        
+        self.isFactorizedA00 = False
         self.n_cond = len(set(map(lambda x: x['obj_count'], self.not_grounded_cond)))
         # \var exc_v0
         # \brief Vector of potential
@@ -526,26 +604,6 @@ class Smn(object):
         else:
             raise ValueError
 
-    # \fn calcLast
-    # \brief fill in additional row and column if infinite ground is not exist
-    def calcLast(self):
-        if not self.iflg:
-            lastC = self.nd_C-1
-            lastL = self.nd_L-1
-            n = 0
-            for bound in self.list_cond:
-                section_m = bound['section']
-                n_subint_m = bound['n_subint']
-                for si in xrange(n_subint_m):
-                    subint_len = bound['section'].getSubinterval(i, n_subint_m).len
-                    if isCalcC:
-                        self.matrix_S01_C[n,  lastC] = subint_len/self.matrix_S00[n,  n]
-                        self.matrix_S10_C[lastC,  n] = si_len*bound_m['mat_param'].get('erp',  1.0)
-                    if isCalcL:
-                        self.matrix_S01_L[n,  lastL] = subint_len/self.matrix_S00[n,  n]
-                        self.matrix_S10_L[lastL,  n] = si_len/bound_m['mat_param'].get('mup',  1.0)
-                    n += 1
-
     @property
     def list_diel_C(self):
         return filter(lambda x:
@@ -574,156 +632,95 @@ class Smn(object):
 
     def fill(self):
         nc=self.nc
-        self.matrix_S00 = numpy.zeros((nc, nc), dtype=numpy.float64)
-        self._calcSmn_(self.matrix_S00, self.list_cond, self.list_cond, False)
+        S00 = numpy.zeros((nc, nc), dtype=numpy.float64)
+        list_cond = self.list_cond
+        self._calcSmn_(S00, list_cond, list_cond, False)
         nd=self.nd_C
-        if self.isCalcC and nd > 0:
-            self.matrix_S01_C = numpy.zeros((nc, nd), dtype=numpy.float64)
-            self._calcSmn_(self.matrix_S01_C, self.list_cond, self.list_diel_C, False)
-            self.matrix_S10_C = numpy.zeros((nd, nc), dtype=numpy.float64)
-            self._calcSmn_(self.matrix_S10_C, self.list_diel_C, self.list_cond, True)
+        if self.isCalcC:
+            S01_C = numpy.zeros((nc, nd), dtype=numpy.float64)
+            S10_C = numpy.zeros((nd, nc), dtype=numpy.float64)
+            S11_C = numpy.zeros((nd, nd), dtype=numpy.float64)
             list_diel = self.list_diel_C
-            self.matrix_S11_C = numpy.zeros((nd, nd), dtype=numpy.float64)
-            self._calcSmn_(self.matrix_S11_C, list_diel, list_diel, True)
+            self._calcSmn_(S01_C, list_cond, list_diel, False)
+            self._calcSmn_(S10_C, list_diel, list_cond, True)
+            self._calcSmn_(S11_C, list_diel, list_diel, True)
             m = 0
             for bound in list_diel:
                 erp = bound['mat_param'].get('erp', 1.0)
                 erm = bound['mat_param'].get('erm', 1.0)
-                er_plus = (erp + erm)*pi/(erp-erm)
+                er = (erp + erm)*pi/(erp-erm)
                 for i in xrange(bound['n_subint']):
-                    self.matrix_S11_C[m, m] += er_plus
+                    S11_C[m, m] += er
                     m += 1
+            self.matrix_SC = Matrix(S00, S01_C, S10_C, S11_C)
+
         nd=self.nd_L
-        if self.isCalcL and nd > 0:
-            self.matrix_S01_L = numpy.zeros((nc, nd), dtype=numpy.float64)
-            self._calcSmn_(self.matrix_S01_L, self.list_cond, self.list_diel_L, False)
-            self.matrix_S10_L = numpy.zeros((nd, nc), dtype=numpy.float64)
-            self._calcSmn_(self.matrix_S10_L, self.list_diel_L, self.list_cond, True)
+        if self.isCalcL:
+            S01_L = numpy.zeros((nc, nd), dtype=numpy.float64)
+            S10_L = numpy.zeros((nd, nc), dtype=numpy.float64)
+            S11_L = numpy.zeros((nd, nd), dtype=numpy.float64)
             list_diel = self.list_diel_L
-            self.matrix_S11_L = numpy.zeros((nd, nd), dtype=numpy.float64)
-            self._calcSmn_(self.matrix_S11_L, list_diel, list_diel, True)
+            self._calcSmn_(S01_L, list_cond, list_diel, False)
+            self._calcSmn_(S10_L, list_diel, list_cond, True)
+            self._calcSmn_(S11_L, list_diel, list_diel, True)
             m = 0
             for bound in list_diel:
                 mup = bound['mat_param'].get('mup', 1.0)
                 mum = bound['mat_param'].get('mum', 1.0)
-                mu_plus = (mup + mum)*pi/(mum-mup)
+                mu = (mup + mum)*pi/(mum-mup)
                 for i in xrange(bound['n_subint']):
-                    self.matrix_S11_L[m, m] += mu_plus
+                    S11_L[m, m] += mu
                     m += 1
-        self.calcLast()
+            self.matrix_SL = Matrix(S00, S01_L, S10_L,  S11_L)
+
+        if not self.iflg:
+            lastC = self.nd_C-1
+            lastL = self.nd_L-1
+            n = 0
+            for bound in self.list_cond:
+                section_m = bound['section']
+                n_subint_m = bound['n_subint']
+                for si in xrange(n_subint_m):
+                    subint_len = bound['section'].getSubinterval(i, n_subint_m).len
+                    if isCalcC:
+                        self.matrix_SC.A01[n,  lastC] = subint_len/self.matrix_SC.A00[n,  n]
+                        self.matrix_SC.A10[lastC,  n] = si_len*bound_m['mat_param'].get('erp',  1.0)
+                    if isCalcL:
+                        self.matrix_SL.A01[n,  lastL] = subint_len/self.matrix_SL.A00[n,  n]
+                        self.matrix_SL.A10[lastL,  n] = si_len/bound_m['mat_param'].get('mup',  1.0)
+                    n += 1
 
     def factorize(self):
-        self.matrix_S00 = la.inv(self.matrix_S00)
-        if self.isCalcC and self.nd_C > 0:
-            self.matrix_S10_C = numpy.dot(self.matrix_S10_C, self.matrix_S00)
-            self.matrix_S11_C -= numpy.dot(self.matrix_S10_C, self.matrix_S01_C)
-            self.matrix_S11_C = la.inv(self.matrix_S11_C)
-        if self.isCalcL and self.nd_L > 0:
-            self.matrix_S10_L = numpy.dot(self.matrix_S10_L, self.matrix_S00)
-            self.matrix_S11_L -= numpy.dot(self.matrix_S10_L, self.matrix_S01_L)
-            self.matrix_S11_L = la.inv(self.matrix_S11_L)
+        if self.isCalcC:
+            if not self.isFactorizedA00:
+                self.matrix_SC.A00 = la.inv(self.matrix_SC.A00)
+                self.isFactorizedA00 = True
+            self.matrix_SC.factorize()
+        if self.isCalcL:
+            if not self.isFactorizedA00:
+                self.matrix_SL.A00 = la.inv(self.matrix_SL.A00)
+                self.isFactorizedA00 = True
+            self.matrix_SL.factorize()
 
     def solve_C(self):
         matrix_Q = numpy.zeros((self.nc + self.nd_C, self.n_cond))
         matrix_Q[:self.nc] = self.exc_v0
-        if self.nd_C > 0:
-            matrix_Q[self.nc:] -= numpy.dot(self.matrix_S10_C, matrix_Q[:self.nc])
-            matrix_Q[self.nc:]  = numpy.dot(self.matrix_S11_C, matrix_Q[self.nc:])
-            matrix_Q[:self.nc] -= numpy.dot(self.matrix_S01_C, matrix_Q[self.nc:])
-        matrix_Q[:self.nc] = numpy.dot(self.matrix_S00, matrix_Q[:self.nc])
-        return matrix_Q
+        return self.matrix_SC.solve(matrix_Q)
 
     def solve_L(self):
         matrix_Q = numpy.zeros((self.nc + self.nd_L, self.n_cond))
         matrix_Q[:self.nc] = self.exc_v0
-        if self.nd_L > 0:
-            matrix_Q[self.nc:] -= numpy.dot(self.matrix_S10_L, matrix_Q[:self.nc])
-            matrix_Q[self.nc:]  = numpy.dot(self.matrix_S11_L, matrix_Q[self.nc:])
-            matrix_Q[:self.nc] -= numpy.dot(self.matrix_S01_L, matrix_Q[self.nc:])
-        matrix_Q[:self.nc] = numpy.dot(self.matrix_S00, matrix_Q[:self.nc])
-        return matrix_Q
+        return self.matrix_SL.solve(matrix_Q)
 
     def iterative_C(self, M):
-        A01, A10, A11 = None, None, None
-        if self.nd_C > 0:
-            A01 = self.matrix_S01_C
-            A10 = self.matrix_S10_C
-            A11 = self.matrix_S11_C
-        return self._iterative_(self.nd_C, M, A01, A10, A11)
+        matrix_Q = numpy.zeros((self.nc + self.nd_C, self.n_cond))
+        matrix_Q[:self.nc] = self.exc_v0
+        return self.matrix_SC.iterative(M.matrix_SC, matrix_Q)
 
     def iterative_L(self, M):
-        A01,A10,A11=None,None,None
-        if self.nd_L > 0:
-            A01 = self.matrix_S01_L
-            A10 = self.matrix_S10_L
-            A11 = self.matrix_S11_L
-        return self._iterative_(self.nd_L, M, A01, A10, A11)
-
-    ## \fn iterative
-    # \brief Stabilized bi-conjugate gradient method with preconditioning (BiCGStab)
-    # \param M Smn object with factorized matrixes S
-    def _iterative_(self, nd, M, A01, A10, A11, M01):
-        nc = self.nc
-        A00 = self.matrix_S00
-        M00 = M.matrix_S00
-        M01 = M.matrix_S01_C
-        M10 = M.matrix_S10_C
-        M11 = M.matrix_S11_C
-        X = numpy.ones((nc+nd, self.n_cond))
-        V = numpy.zeros((nc+nd, self.n_cond))
-        P = numpy.zeros((nc+nd, self.n_cond))
-        R = numpy.zeros((nc+nd, self.n_cond))
-        # r = b - Ax, where b - vector of right-hand members
-        R[:nc] = self.exc_v0 - numpy.dot(A00, X[:nc]) - numpy.dot(A01, X[nc:])
-        R[nc:] = -numpy.dot(A10, X[:nc]) - numpy.dot(A11, X[nc:])
-        Rt = R.copy()
-        S = numpy.zeros((nc+nd, self.n_cond))
-        T = numpy.zeros((nc+nd, self.n_cond))
-        normR0 = la.norm(R)
-        alpha = numpy.ones(self.n_cond)
-        beta = numpy.zeros(self.n_cond)
-        rho = numpy.zeros(self.n_cond)
-        rho_old = numpy.ones(self.n_cond)
-        omega = numpy.ones(self.n_cond)
-        Tol = 1e-16
-        max_iter = 30
-        for iter in xrange(max_iter):
-            for i in xrange(self.n_cond):
-                rho[i] = numpy.dot(Rt[:,i], R[:,i])
-                if rho[i] == 0.0:
-                    raise ValueError
-                beta[i] = (rho[i]/rho_old[i])*(alpha[i]/omega[i])
-            P = R + beta*(P - omega*V)
-            Pt = P.copy()
-            if nd>0:
-                Pt[nc:] -= numpy.dot(M10, Pt[:nc])
-                Pt[nc:]  = numpy.dot(M11, Pt[nc:])
-                Pt[:nc] -= numpy.dot(M01, Pt[nc:])
-            Pt[:nc]  = numpy.dot(M00, Pt[:nc])
-            V[:nc] = numpy.dot(A00, Pt[:nc]) + numpy.dot(A01, Pt[nc:])
-            V[nc:] = numpy.dot(A10, Pt[:nc]) + numpy.dot(A11, Pt[nc:])
-            for i in xrange(self.n_cond):
-                alpha[i] = rho[i]/numpy.dot(Rt[:,i], V[:,i])
-                S[:,i] = R[:,i] - alpha[i]*V[:,i]
-                X[:,i] += alpha[i]*Pt[:,i]
-            if la.norm(S)/normR0 <= Tol:
-                break
-            St = S.copy()
-            if nd>0:
-                St[nc:] -= numpy.dot(M10, St[:nc])
-                St[nc:]  = numpy.dot(M11, St[nc:])
-                St[:nc] -= numpy.dot(M01, St[nc:])
-            St[:nc]  = numpy.dot(M00, St[:nc])
-            T[:nc] = numpy.dot(A00, St[:nc]) + numpy.dot(A01, St[nc:])
-            T[nc:] = numpy.dot(A10, St[:nc]) + numpy.dot(A11, St[nc:])
-            for i in xrange(self.n_cond):
-                omega[i] = numpy.dot(T[:,i], S[:,i])/numpy.dot(T[:,i], T[:,i])
-                X[:,i] += omega[i]*St[:,i]
-                R[:,i] = S[:,i] - omega[i]*T[:,i]
-            if la.norm(R)/normR0 <= Tol:
-                 break
-            rho_old = rho
-        return X
+        matrix_Q = numpy.zeros((self.nc + self.nd_L, self.n_cond))
+        matrix_Q[:self.nc] = self.exc_v0
+        return self.matrix_SL.iterative(M.matrix_SL, matrix_Q)
 
 
 class RLGC(object):
@@ -763,7 +760,7 @@ class RLGC(object):
         self.smn.isCalcL = True
         self.smn.fill()
         self.smn.factorize()
-        self.matrix_QL=self.smn.solve_L()
+        self.matrix_QL = self.smn.solve_L()
         self.mL = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
         self._calcLC_()
         self.smn.isCalcC = tmp_flag
@@ -772,8 +769,8 @@ class RLGC(object):
         self.smn.isCalcC, self.smn.isCalcL = True, True
         self.smn.fill()
         self.smn.factorize()
-        self.matrix_QC=self.smn.solve_C()
-        self.matrix_QL=self.smn.solve_L()
+        self.matrix_QC = self.smn.solve_C()
+        self.matrix_QL = self.smn.solve_L()
         self.mC = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
         self.mL = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
         self._calcLC_()
