@@ -469,7 +469,7 @@ class Matrix(object):
         if type(A01) is numpy.ndarray and type(A10) is numpy.ndarray and type(A11) is numpy.ndarray:
             if A00.shape[0] == A01.shape[0] and A10.shape[0] == A11.shape[0] and A00.shape[1] == A10.shape[1] and A01.shape[1] == A11.shape[1]:
                 self.A01, self.A10, self.A11 = A01, A10, A11
-                self.nd=A01.shape[0]
+                self.nd=A01.shape[1]
             else:
                 self.nd = 0
 
@@ -495,7 +495,7 @@ class Matrix(object):
         nc = self.nc
         nd = self.nd
         if c == None:
-            c = numpy.zeros((self.nc+self.nd, b.shape[1]))
+            c = numpy.zeros((nc + nd, b.shape[1]))
         if nd > 0:
             c[:nc] = numpy.dot(self.A00, b[:nc]) + numpy.dot(self.A01, b[nc:])
             c[nc:] = numpy.dot(self.A10, b[:nc]) + numpy.dot(self.A11, b[nc:])
@@ -507,7 +507,7 @@ class Matrix(object):
     #  \brief Stabilized bi-conjugate gradient method with preconditioning (BiCGStab)
     #  \param M Matrix object with factorized matrixes S
     #  \param b vector of right-hand members
-    def iterative(self, M, b):
+    def iterative(self, M, b, Tol = 1e-16, max_iter = 30):
         nc = self.nc
         nd = self.nd
         n_cond = b.shape[1]
@@ -515,8 +515,6 @@ class Matrix(object):
         X = numpy.ones((nc+nd, n_cond))
         V = numpy.zeros((nc+nd, n_cond))
         P = numpy.zeros((nc+nd, n_cond))
-        R = numpy.zeros((nc+nd, n_cond))
-        # r = b - Ax, where 
         R = b - A.dot(X)
         Rt = R.copy()
         S = numpy.zeros((nc+nd, n_cond))
@@ -527,8 +525,6 @@ class Matrix(object):
         rho = numpy.zeros(n_cond)
         rho_old = numpy.ones(n_cond)
         omega = numpy.ones(n_cond)
-        Tol = 1e-16
-        max_iter = 30
         for iter in xrange(max_iter):
             for i in xrange(n_cond):
                 rho[i] = numpy.dot(Rt[:,i], R[:,i])
@@ -736,7 +732,7 @@ class RLGC(object):
         self.smn.isCalcL = isCalcL
         self.smn.fill()
         if isCalcC:
-            self.matrix_QC=self.smn.iterative_C(self.precondition)
+            self.matrix_QC = self.smn.iterative_C(self.precondition)
             self.mC[:,:] = 0.0
         if isCalcL:
             self.matrix_QL=self.smn.iterative_L(self.precondition)
@@ -749,10 +745,10 @@ class RLGC(object):
         self.smn.isCalcL = False
         self.smn.fill()
         self.smn.factorize()
-        self.matrix_QC=self.smn.solve_C()
+        self.matrix_QC = self.smn.solve_C()
         self.mC = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
         self._calcLC_()
-        self.smn.isCalcL=tmp_flag
+        self.smn.isCalcL = tmp_flag
 
     def calcL(self):
         tmp_flag = self.smn.isCalcC

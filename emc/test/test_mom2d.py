@@ -118,7 +118,6 @@ class Test_RLGC(unittest.TestCase):
     def test_calcC5(self):
         self.assertTrue(numpy.allclose(self.rlgc.mC, read_matrix('_mom2d_RLGC_CalcC5.txt')))
     def test_calcL1(self):
-        print self.rlgc.mL
         self.assertTrue(numpy.allclose(self.rlgc.mL, read_matrix('_mom2d_RLGC_CalcL1.txt')))
     def test_calcL3(self):
         self.assertTrue(numpy.allclose(self.rlgc.matrix_QL[0:9].T, read_matrix('_mom2d_RLGC_CalcL3.txt')))
