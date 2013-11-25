@@ -301,7 +301,7 @@ class Board(object):
                             'cond': list()})
 
 # FIXME: need to add approximate comparison for float numbers
-    def board2structure(self):
+    def to_structure(self):
         structure = Structure()
         # Calculation of structure's right coordinate x
 # FIXME: x['cond'][0]['space'] may be raised exception
@@ -507,7 +507,7 @@ class Matrix(object):
     #  \brief Stabilized bi-conjugate gradient method with preconditioning (BiCGStab)
     #  \param M Matrix object with factorized matrixes S
     #  \param b vector of right-hand members
-    def iterative(self, M, b, Tol = 1e-16, max_iter = 30):
+    def iterative(self, M, b, tol = 1e-16, max_iter = 30):
         nc = self.nc
         nd = self.nd
         n_cond = b.shape[1]
@@ -538,7 +538,7 @@ class Matrix(object):
                 alpha[i] = rho[i]/numpy.dot(Rt[:,i], V[:,i])
                 S[:,i] = R[:,i] - alpha[i]*V[:,i]
                 X[:,i] += alpha[i]*Pt[:,i]
-            if la.norm(S)/normR0 <= Tol:
+            if la.norm(S)/normR0 <= tol:
                 break
             St = M.solve(S)
             A.dot(St, T)
@@ -546,7 +546,7 @@ class Matrix(object):
                 omega[i] = numpy.dot(T[:,i], S[:,i])/numpy.dot(T[:,i], T[:,i])
                 X[:,i] += omega[i]*St[:,i]
                 R[:,i] = S[:,i] - omega[i]*T[:,i]
-            if la.norm(R)/normR0 <= Tol:
+            if la.norm(R)/normR0 <= tol:
                  break
             rho_old = rho
         return X
@@ -565,11 +565,7 @@ class Smn(object):
             raise ValueError('Not grounded conductors is not exist')
         self.iflg = conf.iflg
         self.nc = reduce(lambda r, x: r + x['n_subint'], self.list_cond, 0)
-        self.isCalcC, self.isCalcL = False, False
-        self.isFactorizedA00 = False
         self.n_cond = len(set(map(lambda x: x['obj_count'], self.not_grounded_cond)))
-        # \var exc_v0
-        # \brief Vector of potential
         self.exc_v0 = numpy.zeros((self.nc, self.n_cond))
         beg, n, old_cond = 0, 0, self.not_grounded_cond[0]['obj_count']
         for bound in self.list_cond:
@@ -580,6 +576,10 @@ class Smn(object):
                 old_cond = bound['obj_count']
                 self.exc_v0[beg: end, n] = Coef_C
             beg = end
+        self.S00 = numpy.zeros((self.nc, self.nc), dtype=numpy.float64)
+        self._calcSmn_(self.S00, self.list_cond, self.list_cond, False)
+        self.diag_S00 = self.S00.diagonal()
+        self.is_inv_S00 = False
 
     def _calcSmn_(self, block_S, list1, list2, bDiel):
         for bounds in self.list_cond:
@@ -626,51 +626,59 @@ class Smn(object):
             nd = 1
         return reduce(lambda r, x: r + x['n_subint'], self.list_diel_L, nd)
 
-    def fill(self):
+    def fill_SC(self):
         nc=self.nc
-        S00 = numpy.zeros((nc, nc), dtype=numpy.float64)
-        list_cond = self.list_cond
-        self._calcSmn_(S00, list_cond, list_cond, False)
         nd=self.nd_C
-        if self.isCalcC:
-            S01_C = numpy.zeros((nc, nd), dtype=numpy.float64)
-            S10_C = numpy.zeros((nd, nc), dtype=numpy.float64)
-            S11_C = numpy.zeros((nd, nd), dtype=numpy.float64)
-            list_diel = self.list_diel_C
-            self._calcSmn_(S01_C, list_cond, list_diel, False)
-            self._calcSmn_(S10_C, list_diel, list_cond, True)
-            self._calcSmn_(S11_C, list_diel, list_diel, True)
-            m = 0
-            for bound in list_diel:
-                erp = bound['mat_param'].get('erp', 1.0)
-                erm = bound['mat_param'].get('erm', 1.0)
-                er = (erp + erm)*pi/(erp-erm)
-                for i in xrange(bound['n_subint']):
-                    S11_C[m, m] += er
-                    m += 1
-            self.matrix_SC = Matrix(S00, S01_C, S10_C, S11_C)
-
-        nd=self.nd_L
-        if self.isCalcL:
-            S01_L = numpy.zeros((nc, nd), dtype=numpy.float64)
-            S10_L = numpy.zeros((nd, nc), dtype=numpy.float64)
-            S11_L = numpy.zeros((nd, nd), dtype=numpy.float64)
-            list_diel = self.list_diel_L
-            self._calcSmn_(S01_L, list_cond, list_diel, False)
-            self._calcSmn_(S10_L, list_diel, list_cond, True)
-            self._calcSmn_(S11_L, list_diel, list_diel, True)
-            m = 0
-            for bound in list_diel:
-                mup = bound['mat_param'].get('mup', 1.0)
-                mum = bound['mat_param'].get('mum', 1.0)
-                mu = (mup + mum)*pi/(mum-mup)
-                for i in xrange(bound['n_subint']):
-                    S11_L[m, m] += mu
-                    m += 1
-            self.matrix_SL = Matrix(S00, S01_L, S10_L,  S11_L)
-
+        S01_C = numpy.zeros((nc, nd), dtype=numpy.float64)
+        S10_C = numpy.zeros((nd, nc), dtype=numpy.float64)
+        S11_C = numpy.zeros((nd, nd), dtype=numpy.float64)
+        list_cond = self.list_cond
+        list_diel = self.list_diel_C
+        self._calcSmn_(S01_C, list_cond, list_diel, False)
+        self._calcSmn_(S10_C, list_diel, list_cond, True)
+        self._calcSmn_(S11_C, list_diel, list_diel, True)
+        m = 0
+        for bound in list_diel:
+            erp = bound['mat_param'].get('erp', 1.0)
+            erm = bound['mat_param'].get('erm', 1.0)
+            er = (erp + erm) * pi / (erp - erm)
+            for i in xrange(bound['n_subint']):
+                S11_C[m, m] += er
+                m += 1
+        self.matrix_SC = Matrix(self.S00, S01_C, S10_C, S11_C)
         if not self.iflg:
             lastC = self.nd_C-1
+            n = 0
+            for bound in self.list_cond:
+                section_m = bound['section']
+                n_subint_m = bound['n_subint']
+                for si in xrange(n_subint_m):
+                    subint_len = bound['section'].getSubinterval(i, n_subint_m).len
+                    self.matrix_SC.A01[n, lastC] = subint_len/self.diag_S00[n]
+                    self.matrix_SC.A10[lastC, n] = subint_len*bound_m['mat_param'].get('erp',  1.0)
+                    n += 1
+    
+    def fill_SL(self):
+        nc=self.nc
+        nd=self.nd_L
+        S01_L = numpy.zeros((nc, nd), dtype=numpy.float64)
+        S10_L = numpy.zeros((nd, nc), dtype=numpy.float64)
+        S11_L = numpy.zeros((nd, nd), dtype=numpy.float64)
+        list_cond = self.list_cond
+        list_diel = self.list_diel_L
+        self._calcSmn_(S01_L, list_cond, list_diel, False)
+        self._calcSmn_(S10_L, list_diel, list_cond, True)
+        self._calcSmn_(S11_L, list_diel, list_diel, True)
+        m = 0
+        for bound in list_diel:
+            mup = bound['mat_param'].get('mup', 1.0)
+            mum = bound['mat_param'].get('mum', 1.0)
+            mu = (mup + mum) * pi / (mum - mup)
+            for i in xrange(bound['n_subint']):
+                S11_L[m, m] += mu
+                m += 1
+        self.matrix_SL = Matrix(self.S00, S01_L, S10_L,  S11_L)
+        if not self.iflg:
             lastL = self.nd_L-1
             n = 0
             for bound in self.list_cond:
@@ -678,32 +686,28 @@ class Smn(object):
                 n_subint_m = bound['n_subint']
                 for si in xrange(n_subint_m):
                     subint_len = bound['section'].getSubinterval(i, n_subint_m).len
-                    if isCalcC:
-                        self.matrix_SC.A01[n,  lastC] = subint_len/self.matrix_SC.A00[n,  n]
-                        self.matrix_SC.A10[lastC,  n] = si_len*bound_m['mat_param'].get('erp',  1.0)
-                    if isCalcL:
-                        self.matrix_SL.A01[n,  lastL] = subint_len/self.matrix_SL.A00[n,  n]
-                        self.matrix_SL.A10[lastL,  n] = si_len/bound_m['mat_param'].get('mup',  1.0)
+                    self.matrix_SL.A01[n, lastL] = subint_len/self.diag_S00[n]
+                    self.matrix_SL.A10[lastL, n] = subint_len/bound_m['mat_param'].get('mup',  1.0)
                     n += 1
 
-    def factorize(self):
-        if self.isCalcC:
-            if not self.isFactorizedA00:
-                self.matrix_SC.A00 = la.inv(self.matrix_SC.A00)
-                self.isFactorizedA00 = True
-            self.matrix_SC.factorize()
-        if self.isCalcL:
-            if not self.isFactorizedA00:
-                self.matrix_SL.A00 = la.inv(self.matrix_SL.A00)
-                self.isFactorizedA00 = True
-            self.matrix_SL.factorize()
+    def factorize_SC(self):
+        if not self.is_inv_S00:
+            self.S00[:] = la.inv(self.S00)
+            self.is_inv_S00 = True
+        self.matrix_SC.factorize()
+    
+    def factorize_SL(self):
+        if not self.is_inv_S00:
+            self.S00[:] = la.inv(self.S00)
+            self.is_inv_S00 = True
+        self.matrix_SL.factorize()
 
-    def solve_C(self):
+    def solve_SC(self):
         matrix_Q = numpy.zeros((self.nc + self.nd_C, self.n_cond))
         matrix_Q[:self.nc] = self.exc_v0
         return self.matrix_SC.solve(matrix_Q)
 
-    def solve_L(self):
+    def solve_SL(self):
         matrix_Q = numpy.zeros((self.nc + self.nd_L, self.n_cond))
         matrix_Q[:self.nc] = self.exc_v0
         return self.matrix_SL.solve(matrix_Q)
@@ -721,58 +725,32 @@ class Smn(object):
 
 class RLGC(object):
     def __init__(self, conf):
+        self.is_calc_C, self.is_calc_L = False, False
         self.smn = Smn(conf)
 
     def update(self, conf):
-        isCalcC=self.smn.isCalcC
-        isCalcL=self.smn.isCalcL
         self.precondition = self.smn
         self.smn = Smn(conf)
-        self.smn.isCalcC = isCalcC
-        self.smn.isCalcL = isCalcL
-        self.smn.fill()
-        if isCalcC:
+        if self.is_calc_C:
+            self.smn.fill_SC()
             self.matrix_QC = self.smn.iterative_C(self.precondition)
             self.mC[:,:] = 0.0
-        if isCalcL:
-            self.matrix_QL=self.smn.iterative_L(self.precondition)
+            self.calc_C()
+        if self.is_calc_L:
+            self.smn.fill_SL()
+            self.matrix_QL = self.smn.iterative_L(self.precondition)
             self.mL[:,:] = 0.0
-        self._calcLC_()
-
-    def calcC(self):
-        self.smn.isCalcC = True
-        tmp_flag = self.smn.isCalcL
-        self.smn.isCalcL = False
-        self.smn.fill()
-        self.smn.factorize()
-        self.matrix_QC = self.smn.solve_C()
+            self._calc_L()
+    
+    def calc_C(self):
+        self.is_calc_C = True
+        self.smn.fill_SC()
+        self.smn.factorize_SC()
+        self.matrix_QC = self.smn.solve_SC()
         self.mC = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
-        self._calcLC_()
-        self.smn.isCalcL = tmp_flag
-
-    def calcL(self):
-        tmp_flag = self.smn.isCalcC
-        self.smn.isCalcC = False
-        self.smn.isCalcL = True
-        self.smn.fill()
-        self.smn.factorize()
-        self.matrix_QL = self.smn.solve_L()
-        self.mL = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
-        self._calcLC_()
-        self.smn.isCalcC = tmp_flag
-
-    def calcLC(self):
-        self.smn.isCalcC, self.smn.isCalcL = True, True
-        self.smn.fill()
-        self.smn.factorize()
-        self.matrix_QC = self.smn.solve_C()
-        self.matrix_QL = self.smn.solve_L()
-        self.mC = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
-        self.mL = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
-        self._calcLC_()
-
-    def _calcLC_(self):
-        # Matrix C and L calculating
+        self._calc_C()
+    
+    def _calc_C(self):
         beg, m, old_cond = 0, 0, self.smn.not_grounded_cond[0]['obj_count']
         for bound in self.smn.list_cond:
             end = beg + bound['n_subint']
@@ -781,18 +759,41 @@ class RLGC(object):
                     m += 1
                 old_cond = bound['obj_count']
             erp = bound['mat_param'].get('erp', 1.0)
+            if not bound['grounded']:
+                for j, i in enumerate(xrange(beg, end)):
+                    subint_len = bound['section'].getSubinterval(j, bound['n_subint']).len
+                    self.matrix_QC[i, 0:self.smn.n_cond] *= subint_len*erp
+                for n in xrange(self.smn.n_cond):
+                    self.mC[m, n] += self.matrix_QC[beg: end, n].sum()
+            beg = end
+    
+    def calc_L(self):
+        self.is_calc_L = True
+        self.smn.fill_SL()
+        self.smn.factorize_SL()
+        self.matrix_QL = self.smn.solve_SL()
+        self.mL = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
+        self._calc_L()
+    
+    def _calc_L(self):
+        beg, m, old_cond = 0, 0, self.smn.not_grounded_cond[0]['obj_count']
+        for bound in self.smn.list_cond:
+            end = beg + bound['n_subint']
+            if not bound['grounded']:
+                if old_cond != bound['obj_count']:
+                    m += 1
+                old_cond = bound['obj_count']
             mup = bound['mat_param'].get('mup', 1.0)
             if not bound['grounded']:
                 for j, i in enumerate(xrange(beg, end)):
                     subint_len = bound['section'].getSubinterval(j, bound['n_subint']).len
-                    if self.smn.isCalcC:
-                        self.matrix_QC[i, 0:self.smn.n_cond] *= subint_len*erp
-                    if self.smn.isCalcL:
-                        self.matrix_QL[i, 0:self.smn.n_cond] *= subint_len/mup
+                    self.matrix_QL[i, 0:self.smn.n_cond] *= subint_len/mup
                 for n in xrange(self.smn.n_cond):
-                    if self.smn.isCalcC:
-                        self.mC[m, n] += self.matrix_QC[beg: end, n].sum()
-                    if self.smn.isCalcL:
-                        self.mL[m, n] += self.matrix_QL[beg: end, n].sum()
+                    self.mL[m, n] += self.matrix_QL[beg: end, n].sum()
             beg = end
-        if self.smn.isCalcL: self.mL = la.inv(self.mL)/(V0*V0)
+        self.mL = la.inv(self.mL)/(V0*V0)
+
+    def calc_LC(self):
+        self.calc_L()
+        self.calc_C()
+        

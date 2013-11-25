@@ -47,12 +47,12 @@ board.conductor(s1, d1, t, grounded=isgrounded)
 board.cover(h_mask, er_mask)
 
 # Build structure
-conf=board.board2structure()
+conf=board.to_structure()
 conf.set_subintervals(100)
 print len(conf.list_diel)+len(conf.list_cond)
 
 lc=RLGC(conf)
-lc.calcLC()
-print lc.mC
-print lc.mL
+lc.calc_LC()
+print lc.mC[-2, -2]
+print lc.mL[-2, -2]
 

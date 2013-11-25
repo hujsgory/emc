@@ -57,8 +57,7 @@ class Test_Smn(unittest.TestCase):
         self.conf.add(self.s2)
         self.conf.set_subintervals(3)
         self.smn=Smn(self.conf)
-        self.smn.isCalcC=True
-        self.smn.fill()
+        self.smn.fill_SC()
     def test_fillS00(self):
         self.assertTrue(numpy.allclose(self.smn.matrix_SC.A00, read_matrix('_mom2d_Smn_CalcS00.txt')))
     def test_fillS01(self):
@@ -110,17 +109,17 @@ class Test_RLGC(unittest.TestCase):
         self.conf.cond(erp=3.0,mup=5.0)
         self.conf.add(Section(Coord(0.5,0.5),Coord(0.0,0.0)),4)
         self.rlgc=RLGC(self.conf)
-        self.rlgc.calcLC()
+        self.rlgc.calc_LC()
     def test_calcC1(self):
         self.assertEqual(self.rlgc.smn.n_cond,2,self.rlgc.smn.n_cond)
     def test_calcC2(self):
-        self.assertTrue(numpy.allclose(self.rlgc.matrix_QC[0:9].T, read_matrix('_mom2d_RLGC_CalcC2.txt')))
+        self.assertTrue(numpy.allclose(self.rlgc.matrix_QC[0:9].T, read_matrix('_mom2d_RLGC_CalcC2.txt'), rtol=1e-6))
     def test_calcC5(self):
-        self.assertTrue(numpy.allclose(self.rlgc.mC, read_matrix('_mom2d_RLGC_CalcC5.txt')))
+        self.assertTrue(numpy.allclose(self.rlgc.mC, read_matrix('_mom2d_RLGC_CalcC5.txt'), rtol=1e-6))
     def test_calcL1(self):
-        self.assertTrue(numpy.allclose(self.rlgc.mL, read_matrix('_mom2d_RLGC_CalcL1.txt')))
+        self.assertTrue(numpy.allclose(self.rlgc.mL, read_matrix('_mom2d_RLGC_CalcL1.txt'), rtol=1e-6))
     def test_calcL3(self):
-        self.assertTrue(numpy.allclose(self.rlgc.matrix_QL[0:9].T, read_matrix('_mom2d_RLGC_CalcL3.txt')))
+        self.assertTrue(numpy.allclose(self.rlgc.matrix_QL[0:9].T, read_matrix('_mom2d_RLGC_CalcL3.txt'), rtol=1e-6))
 
 
 class Test_Board1(unittest.TestCase):
@@ -158,7 +157,7 @@ class Test_Board2(unittest.TestCase):
         self.board.conductor(800e-6,401e-6,18e-6)
         self.board.medium['mu']=1.00000037
     def test_1(self):
-        conf=self.board.board2structure()
+        conf=self.board.to_structure()
         x0,x1,x2,x3=0.0,800e-6,1201e-6,2001e-6
         y1,y2=990e-6,1008e-6
         er1,er2=4.3,1.0
@@ -174,7 +173,7 @@ class Test_Board2(unittest.TestCase):
         self.assertTrue(conf.list_diel==answ2)
     def test_2(self):
         self.board.cover(31e-6,4.8)
-        conf=self.board.board2structure()
+        conf=self.board.to_structure()
         er1,er2=4.8,1.0
         td1,td2=0.0,0.0
         mu1,mu2=1.0,1.00000037
@@ -188,5 +187,12 @@ class Test_Board2(unittest.TestCase):
               {'section':Section(Coord(x2,y2),Coord(x3,y2)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':4},\
               ]
         self.assertTrue(conf.list_diel[2:]==answ)
+
+
+class Test_Matrix(object):
+    def SetUp(self):
+        pass
+    def test(self):
+        pass
 
 unittest.main()
