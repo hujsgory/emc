@@ -156,7 +156,7 @@ class Structure(object):
             return True
         # Collinear (both ends of segments lie on one line)
         if atan2(a1, b1) == atan2(a2, b2) and d1 == d2:
-            #   |------| ==  ==  == |------|
+            #   |------|======|------|
             # fmin1  fmin2  fmax1  fmax2
             fmin1 = min(sect1.beg.x, sect1.end.x)
             fmin2 = min(sect2.beg.x, sect2.end.x)
@@ -463,21 +463,28 @@ class Matrix(object):
     def __init__(self, A00, A01, A10, A11):
         if type(A00) is numpy.ndarray:
             self.A00 = A00
+            #self.copy_A00 = A00.copy()
             self.nc = A00.shape[0]
+            #self.norm_A00 = la.norm(self.A00)
         else:
             raise ValueError
         if type(A01) is numpy.ndarray and type(A10) is numpy.ndarray and type(A11) is numpy.ndarray:
             if A00.shape[0] == A01.shape[0] and A10.shape[0] == A11.shape[0] and A00.shape[1] == A10.shape[1] and A01.shape[1] == A11.shape[1]:
                 self.A01, self.A10, self.A11 = A01, A10, A11
+                #self.copy_A01, self.copy_A10, self.copy_A11 = A01.copy(), A10.copy(), A11.copy()
                 self.nd=A01.shape[1]
+                #self.norm_A01 = la.norm(self.A01)
+                #self.norm_A10 = la.norm(self.A10)
+                #self.norm_A11 = la.norm(self.A11)
             else:
                 self.nd = 0
+                #self.norm_A01, self.norm_A10, self.norm_A11 = 0.0, 0.0, 0.0
 
     def factorize(self):
         if self.nd > 0:
-            self.A10 = numpy.dot(self.A10, self.A00)
+            self.A10[:] = numpy.dot(self.A10, self.A00)
             self.A11 -= numpy.dot(self.A10, self.A01)
-            self.A11 = la.inv(self.A11)
+            self.A11[:] = la.inv(self.A11)
 
     def solve(self, b):
         nc = self.nc
@@ -507,7 +514,7 @@ class Matrix(object):
     #  \brief Stabilized bi-conjugate gradient method with preconditioning (BiCGStab)
     #  \param M Matrix object with factorized matrixes S
     #  \param b vector of right-hand members
-    def iterative(self, M, b, tol = 1e-16, max_iter = 30):
+    def iterative(self, M, b, tol = 1e-16, max_iter = 50):
         nc = self.nc
         nd = self.nd
         n_cond = b.shape[1]
@@ -519,17 +526,17 @@ class Matrix(object):
         Rt = R.copy()
         S = numpy.zeros((nc+nd, n_cond))
         T = numpy.zeros((nc+nd, n_cond))
-        normR0 = la.norm(R)
+        norm_R0 = la.norm(R)
         alpha = numpy.ones(n_cond)
         beta = numpy.zeros(n_cond)
         rho = numpy.zeros(n_cond)
         rho_old = numpy.ones(n_cond)
         omega = numpy.ones(n_cond)
-        for iter in xrange(max_iter):
+        for niter in xrange(max_iter):
             for i in xrange(n_cond):
                 rho[i] = numpy.dot(Rt[:,i], R[:,i])
                 if rho[i] == 0.0:
-                    raise ValueError
+                    break
                 beta[i] = (rho[i]/rho_old[i])*(alpha[i]/omega[i])
             P = R + beta*(P - omega*V)
             Pt = M.solve(P)
@@ -538,7 +545,7 @@ class Matrix(object):
                 alpha[i] = rho[i]/numpy.dot(Rt[:,i], V[:,i])
                 S[:,i] = R[:,i] - alpha[i]*V[:,i]
                 X[:,i] += alpha[i]*Pt[:,i]
-            if la.norm(S)/normR0 <= tol:
+            if la.norm(S)/norm_R0 <= tol:
                 break
             St = M.solve(S)
             A.dot(St, T)
@@ -546,9 +553,12 @@ class Matrix(object):
                 omega[i] = numpy.dot(T[:,i], S[:,i])/numpy.dot(T[:,i], T[:,i])
                 X[:,i] += omega[i]*St[:,i]
                 R[:,i] = S[:,i] - omega[i]*T[:,i]
-            if la.norm(R)/normR0 <= tol:
+            norm_R = la.norm(R)/norm_R0
+            #print norm_R
+            if norm_R <= tol:
                  break
             rho_old = rho
+        #print niter
         return X
 
 
@@ -727,15 +737,18 @@ class RLGC(object):
     def __init__(self, conf):
         self.is_calc_C, self.is_calc_L = False, False
         self.smn = Smn(conf)
+        self.is_updated = False
 
     def update(self, conf):
-        self.precondition = self.smn
+        if not self.is_updated:
+            self.precondition = self.smn
+            self.is_updated = True
         self.smn = Smn(conf)
         if self.is_calc_C:
             self.smn.fill_SC()
             self.matrix_QC = self.smn.iterative_C(self.precondition)
             self.mC[:,:] = 0.0
-            self.calc_C()
+            self._calc_C()
         if self.is_calc_L:
             self.smn.fill_SL()
             self.matrix_QL = self.smn.iterative_L(self.precondition)

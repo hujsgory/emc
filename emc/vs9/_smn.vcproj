@@ -204,7 +204,7 @@
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="true"
 				EnableFiberSafeOptimizations="true"
-				AdditionalIncludeDirectories="&quot;c:\WinPython\python-2.7.5.amd64\Lib\site-packages\numpy\core\include&quot;;&quot;c:\WinPython\python-2.7.5.amd64\include&quot;"
+				AdditionalIncludeDirectories="&quot;c:\WinPython32\python-2.7.5\Lib\site-packages\numpy\core\include&quot;;&quot;c:\WinPython32\python-2.7.5\include&quot;"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;_SMN_EXPORTS"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
