@@ -7,7 +7,7 @@ import _smn
 
 eps0 = 8.854187817e-12 # dielectric constant
 Coef_C = 4*pi*eps0
-V0 = 299792458.0     # light velocity
+V0 = 299792458.0       # light velocity
 
 
 ## \class Coord
@@ -239,7 +239,7 @@ class Structure(object):
 
     ## \function autosegment
     #  \brief calculate and set number of a segments to length subinterval for the each boundary of the structure
-    #  \param 
+    #  \param length length of subinterval
     def auto_segment(self, length):
         pass
 
