@@ -107,8 +107,8 @@ class Section(object):
 # \brief Object contain a list of a conductors and a dielectrics
 class Structure(object):
     def __init__(self):
-        self.list_cond = list()
-        self.list_diel = list()
+        self.list_cond = list() #Bound_list()
+        self.list_diel = list() #Bound_list()
         self.iflg = True
         self.grounded = False
         self.mat_type = False     # mat_type: False - Conductor-Dielectric bound,  True - Dielectric-Dielectric bound
@@ -130,10 +130,10 @@ class Structure(object):
         else:
             return self.list_diel[self.iter_idx-len(self.list_cond)-1]
 
-    ## \fn intersection
+    ## \fn is_intersection
     # \brief The function checking the two boundaries on intersection
     # \param sect1 \param sect2 two object of Section type
-    def intersection(self, sect1, sect2):
+    def is_intersection(self, sect1, sect2):
         # Coeficients of Ax+By+D=0
         a1 = -sect1.dy
         b1 =  sect1.dx
@@ -176,12 +176,16 @@ class Structure(object):
     # \brief The function checking the added boundary on intersection with other boundaries 
     def check_intersection(self, section):
         return reduce(lambda r, bound:
-                      r or self.intersection(bound['section'], section),
+                      r or self.is_intersection(bound['section'], section),
                       self.list_cond, False) or \
                reduce(lambda r, bound:
-                      r or self.intersection(bound['section'], section),
+                      r or self.is_intersection(bound['section'], section),
                       self.list_diel, False)
-
+    ## \fn is_ortho
+    # \brief The function checking the list of boundaries on orthogonality
+    def is_ortho(self):
+        pass
+    
     ## \fn add
     # \brief Boundary addition
     # \param section - Section() object
@@ -248,6 +252,7 @@ class Structure(object):
 
     def smart_segment(self):
         pass
+
 
 class Board(object):
     def __init__(self):
@@ -515,6 +520,7 @@ class Matrix(object):
     #  \param M Matrix object with factorized matrixes S
     #  \param b vector of right-hand members
     def iterative(self, M, b, tol = 1e-16, max_iter = 50):
+        #_itrative.bicgstab()
         nc = self.nc
         nd = self.nd
         n_cond = b.shape[1]
@@ -591,6 +597,7 @@ class Smn(object):
         self.diag_S00 = self.S00.diagonal()
         self.is_inv_S00 = False
 
+# TODO: any and ortho functions.  
     def _calcSmn_(self, block_S, list1, list2, bDiel):
         for bounds in self.list_cond:
             section = bounds['section']
@@ -604,11 +611,15 @@ class Smn(object):
            type(list2) is not list:
             raise TypeError
         if len(block_S.shape) == 2 and \
-           block_S.shape[0] == reduce(lambda r, x: r + x['n_subint'], list1, 0) and \
-           block_S.shape[1] == reduce(lambda r, x: r + x['n_subint'], list2, 0):
-            _smn._calcSmn_(block_S, list1, list2, bDiel, self.iflg)
+           block_S.shape[0] == reduce(lambda r, x: r + x['n_subint'], list1, 0) and \   #list1.n_subint
+           block_S.shape[1] == reduce(lambda r, x: r + x['n_subint'], list2, 0):        #list2.n_subint
+
+#            if list1.is_ortho and list2.is_ortho:
+#                _smn.ortho(block_S, list1, list2, bDiel, self.iflg)
+#            else:
+            _smn.any(block_S, list1, list2, bDiel, self.iflg)
         else:
-            raise ValueError
+            raise ValueError('Matrix size correspond not structure size')
 
     @property
     def list_diel_C(self):

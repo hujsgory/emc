@@ -1,10 +1,11 @@
 from distutils.core import setup, Extension
 import os
+from config import *
 
 c_ext=Extension("_smn",
-                include_dirs = ["c:\\WinPython\\python-2.7.5.amd64\\Lib\\site-packages\\numpy\\core\\include"],
-                library_dirs = ["C:\\WinPython\\python-2.7.5.amd64\\Lib\\site-packages\\numpy\\core\\lib"],
-                sources      = ["emc/_smn.cpp"])
+                include_dirs = [NUMPY_ROOT + "core\\include"],
+                library_dirs = [NUMPY_ROOT + "core\\lib"],
+                sources      = ["emc/_smn.cpp", "emc/_iterative.cpp"])
 
 setup(name         =  'emc'                ,
       version      =  '0.0.2'              ,

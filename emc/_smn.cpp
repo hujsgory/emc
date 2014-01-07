@@ -160,8 +160,8 @@ static PyObject * _smn_ortho(PyObject * self, PyObject * args){
     return Py_BuildValue("i",1);
 }
 
-static PyMethodDef _methods[]={{"_calcSmn_any", _smn_any, METH_VARARGS, _smn_any_doc},
-                               {"_calcSmn_ortho", _smn_ortho, METH_VARARGS, _smn_ortho_doc},
+static PyMethodDef _methods[]={{"any", _smn_any, METH_VARARGS, _smn_any_doc},
+                               {"ortho", _smn_ortho, METH_VARARGS, _smn_ortho_doc},
                                {NULL   , NULL,            0,     NULL}};
 #ifdef __cplusplus
 extern "C" {
