@@ -4,6 +4,7 @@ from math import *
 import numpy
 import numpy.linalg as la
 import _smn
+import scipy.sparse.linalg.isolve.iterative as it
 
 eps0 = 8.854187817e-12 # dielectric constant
 Coef_C = 4*pi*eps0
@@ -244,8 +245,9 @@ class Structure(object):
     ## \function autosegment
     #  \brief calculate and set number of a segments to length subinterval for the each boundary of the structure
     #  \param length length of subinterval
-    def auto_segment(self, length):
-        pass
+    def len_subint(self, length):
+        for bound in self:
+            bound['n_subint'] = int(round(bound['section'].len/length))
 
     def adaptive_segment(self, criterion):
         pass
@@ -438,12 +440,7 @@ class Board(object):
                             continue
                         j += 1
 
-                structure.diel(erp=er_bottom,
-                                    tdp=td_bottom,
-                                    mup=mu_bottom,
-                                    erm=er_top,
-                                    tdm=td_top,
-                                    mum=mu_top)
+                structure.diel(erp=er_bottom, tdp=td_bottom, mup=mu_bottom, erm=er_top, tdm=td_top, mum=mu_top)
                 x_left,x_right = 0.0,0.0
                 for section_cur, section_next in zip(cover, cover[1:]):
                     x_right = x_left + section_cur['width']
@@ -520,7 +517,7 @@ class Matrix(object):
     #  \param M Matrix object with factorized matrixes S
     #  \param b vector of right-hand members
     def iterative(self, M, b, tol = 1e-16, max_iter = 50):
-        #_itrative.bicgstab()
+        #it.bicgstab(A=,M=M)
         nc = self.nc
         nd = self.nd
         n_cond = b.shape[1]
@@ -611,8 +608,8 @@ class Smn(object):
            type(list2) is not list:
             raise TypeError
         if len(block_S.shape) == 2 and \
-           block_S.shape[0] == reduce(lambda r, x: r + x['n_subint'], list1, 0) and \   #list1.n_subint
-           block_S.shape[1] == reduce(lambda r, x: r + x['n_subint'], list2, 0):        #list2.n_subint
+           block_S.shape[0] == reduce(lambda r, x: r + x['n_subint'], list1, 0) and \
+           block_S.shape[1] == reduce(lambda r, x: r + x['n_subint'], list2, 0):
 
 #            if list1.is_ortho and list2.is_ortho:
 #                _smn.ortho(block_S, list1, list2, bDiel, self.iflg)

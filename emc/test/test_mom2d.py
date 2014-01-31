@@ -95,6 +95,10 @@ class Test_Conf(unittest.TestCase):
     def test_intersection_3(self):
         self.conf.add(Section(self.c6,self.c5))
         self.assertRaises(ValueError,self.conf.add,Section(self.c1,self.c7))
+    def test_autosegment(self):
+        self.conf.add(Section(self.c1,self.c5))
+        self.conf.len_subint(0.1)
+        self.assertEqual(self.conf.list_cond[0]['n_subint'],14)
 
 
 class Test_RLGC(unittest.TestCase):
