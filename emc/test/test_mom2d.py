@@ -68,7 +68,7 @@ class Test_Smn(unittest.TestCase):
         self.assertTrue(numpy.allclose(self.smn.matrix_SC.A11, read_matrix('_mom2d_Smn_CalcS11.txt')))
 
 
-class Test_Conf(unittest.TestCase):
+class Test_Structure(unittest.TestCase):
     def setUp(self):
         self.c1=Coord(0.0,0.0)
         self.c5=Coord(1.0,1.0)
@@ -99,7 +99,29 @@ class Test_Conf(unittest.TestCase):
         self.conf.add(Section(self.c1,self.c5))
         self.conf.len_subint(0.1)
         self.assertEqual(self.conf.list_cond[0]['n_subint'],14)
-
+    def test_is_ortho_1(self):
+        self.conf.add(Section(self.c1,self.cx2))
+        self.conf.add(Section(self.cx2,self.c7))
+        self.conf.diel(erm=2.0)
+        self.conf.add(Section(self.c1,self.cy3))
+        self.conf.add(Section(self.cy3,self.c5))
+        self.assertTrue(self.conf.is_ortho())
+    def test_is_ortho_2(self):
+        self.conf.add(Section(self.c1,self.cx2))
+        self.conf.add(Section(self.cx2,self.c7))
+        self.conf.add(Section(self.c1,self.c7))
+        self.conf.diel(erm=2.0)
+        self.conf.add(Section(self.c1,self.cy3))
+        self.conf.add(Section(self.cy3,self.c5))
+        self.assertFalse(self.conf.is_ortho())
+    def test_is_ortho_3(self):
+        self.conf.add(Section(self.c1,self.cy3))
+        self.conf.add(Section(self.cy3,self.c5))
+        self.conf.diel(erm=2.0)
+        self.conf.add(Section(self.c1,self.cx2))
+        self.conf.add(Section(self.cx2,self.c7))
+        self.conf.add(Section(self.c1,self.c7))
+        self.assertFalse(self.conf.is_ortho())
 
 class Test_RLGC(unittest.TestCase):
     def setUp(self):

@@ -176,16 +176,12 @@ class Structure(object):
     ## \fn check_intersection
     # \brief The function checking the added boundary on intersection with other boundaries 
     def check_intersection(self, section):
-        return reduce(lambda r, bound:
-                      r or self.is_intersection(bound['section'], section),
-                      self.list_cond, False) or \
-               reduce(lambda r, bound:
-                      r or self.is_intersection(bound['section'], section),
-                      self.list_diel, False)
+        return reduce(lambda r, bound: r or self.is_intersection(bound['section'], section), self, False)
+    
     ## \fn is_ortho
     # \brief The function checking the list of boundaries on orthogonality
     def is_ortho(self):
-        pass
+        return reduce(lambda r, bound: r and (bound['section'].dx==0.0 or bound['section'].dy==0.0), self, True)
     
     ## \fn add
     # \brief Boundary addition
