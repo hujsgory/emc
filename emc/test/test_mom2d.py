@@ -137,7 +137,7 @@ class Test_RLGC(unittest.TestCase):
         self.rlgc=RLGC(self.conf)
         self.rlgc.calc_LC()
     def test_calcC1(self):
-        self.assertEqual(self.rlgc.smn.n_cond,2,self.rlgc.smn.n_cond)
+        self.assertEqual(self.rlgc.smn.structure.n_cond,2,self.rlgc.smn.structure.n_cond)
     def test_calcC2(self):
         self.assertTrue(numpy.allclose(self.rlgc.matrix_QC[0:9].T, read_matrix('_mom2d_RLGC_CalcC2.txt'), rtol=1e-6))
     def test_calcC5(self):

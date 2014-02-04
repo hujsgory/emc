@@ -103,155 +103,6 @@ class Section(object):
         else:
             raise TypeError
 
-
-## \class Structure
-# \brief Object contain a list of a conductors and a dielectrics
-class Structure(object):
-    def __init__(self):
-        self.list_cond = list() #Bound_list()
-        self.list_diel = list() #Bound_list()
-        self.iflg = True
-        self.grounded = False
-        self.mat_type = False     # mat_type: False - Conductor-Dielectric bound,  True - Dielectric-Dielectric bound
-        self.obj_count = 0
-        self.sect_count = 0
-        self.mat_param = dict()
-        self.iter_idx = 0
-
-    def __iter__(self):
-        self.iter_idx = 0
-        return self
-
-    def next(self):
-        self.iter_idx += 1
-        if self.iter_idx > len(self.list_cond) + len(self.list_diel):
-            raise StopIteration
-        if self.iter_idx <= len(self.list_cond):
-            return self.list_cond[self.iter_idx-1]
-        else:
-            return self.list_diel[self.iter_idx-len(self.list_cond)-1]
-
-    ## \fn is_intersection
-    # \brief The function checking the two boundaries on intersection
-    # \param sect1 \param sect2 two object of Section type
-    def is_intersection(self, sect1, sect2):
-        # Coeficients of Ax+By+D=0
-        a1 = -sect1.dy
-        b1 =  sect1.dx
-        d1 = -(a1*sect1.beg.x + b1*sect1.beg.y)
-        a2 = -sect2.dy
-        b2 =  sect2.dx
-        d2 = -(a2*sect2.beg.x + b2*sect2.beg.y)
-
-        # Calculate halfplane of sections ends
-        seg1_line2_start = a2*sect1.beg.x + b2*sect1.beg.y + d2
-        seg1_line2_end   = a2*sect1.end.x + b2*sect1.end.y + d2
-        seg2_line1_start = a1*sect2.beg.x + b1*sect2.beg.y + d1
-        seg2_line1_end   = a1*sect2.end.x + b1*sect2.end.y + d1
-
-        h1 = seg1_line2_start*seg1_line2_end
-        h2 = seg2_line1_start*seg2_line1_end
-
-        # Ends located in the different halfplane
-        if h1 < 0. and h2 < 0.:
-            return True
-        # Collinear (both ends of segments lie on one line)
-        if atan2(a1, b1) == atan2(a2, b2) and d1 == d2:
-            #   |------|======|------|
-            # fmin1  fmin2  fmax1  fmax2
-            fmin1 = min(sect1.beg.x, sect1.end.x)
-            fmin2 = min(sect2.beg.x, sect2.end.x)
-            fmax1 = max(sect1.beg.x, sect1.end.x)
-            fmax2 = max(sect2.beg.x, sect2.end.x)
-            if fmin1 < fmax2 and fmin2 < fmax1:
-                return True
-            fmin1 = min(sect1.beg.y, sect1.end.y)
-            fmin2 = min(sect2.beg.y, sect2.end.y)
-            fmax1 = max(sect1.beg.y, sect1.end.y)
-            fmax2 = max(sect2.beg.y, sect2.end.y)
-            if fmin1 < fmax2 and fmin2 < fmax1:
-                return True
-        return False
-    
-    ## \fn check_intersection
-    # \brief The function checking the added boundary on intersection with other boundaries 
-    def check_intersection(self, section):
-        return reduce(lambda r, bound: r or self.is_intersection(bound['section'], section), self, False)
-    
-    ## \fn is_ortho
-    # \brief The function checking the list of boundaries on orthogonality
-    def is_ortho(self):
-        return reduce(lambda r, bound: r and (bound['section'].dx==0.0 or bound['section'].dy==0.0), self, True)
-    
-    ## \fn add
-    # \brief Boundary addition
-    # \param section - Section() object
-    # \param n_subint - number of subintervals
-    def add(self, section, n_subint=1):
-        if type(section) is Section and type(n_subint) is int:
-            if self.check_intersection(section):
-                raise ValueError
-            bound = {'section': section,
-                     'n_subint': n_subint,
-                     'mat_param': self.mat_param,
-                     'obj_count': self.obj_count,
-                     'sect_count': self.sect_count}
-            if self.mat_type:
-                self.list_diel.append(bound)
-            else:
-                bound['grounded'] = self.grounded
-                self.list_cond.append(bound)
-            self.sect_count += 1
-        else:
-            raise TypeError
-
-    ## \fn cond
-    # \brief Conductor properties setting
-    # \param mat_param - dictionary which can have following entries:
-    #  erp - relative permittivity on right side of section,  erm - on left side
-    #  tdp, tdm - dielectric loss tangent
-    #  mup, mum - relative magnetic permeability
-    def cond(self, **mat_param):
-        self.grounded = False
-        self.mat_param = mat_param
-        self.mat_type = False
-        self.obj_count += 1
-        self.sect_count = 0
-
-    def ground_cond(self, **mat_param):
-        self.grounded = True
-        self.mat_param = mat_param
-        self.mat_type = False
-        self.obj_count += 1
-        self.sect_count = 0
-
-    def diel(self, **mat_param):
-        self.mat_param = mat_param
-        self.mat_type = True
-        self.obj_count += 1
-        self.sect_count = 0
-
-    ## \function set_subintervals
-    #  \brief set number of a segments for the each boundary of the structure
-    #  \param n_subint number of the segments
-    def set_subintervals(self, n_subint):
-        for bound in self:
-            bound['n_subint'] = n_subint
-
-    ## \function autosegment
-    #  \brief calculate and set number of a segments to length subinterval for the each boundary of the structure
-    #  \param length length of subinterval
-    def len_subint(self, length):
-        for bound in self:
-            bound['n_subint'] = int(round(bound['section'].len/length))
-
-    def adaptive_segment(self, criterion):
-        pass
-
-    def smart_segment(self):
-        pass
-
-
 class Board(object):
     def __init__(self):
         self.layers = list()
@@ -560,24 +411,178 @@ class Matrix(object):
         #print niter
         return X
 
+## \class Structure
+# \brief Object contain a list of a conductors and a dielectrics
+class Structure(object):
+    def __init__(self):
+        self.list_cond = list() #Bound_list()
+        self.list_diel = list() #Bound_list()
+        self.iflg = True
+        self.grounded = False
+        self.mat_type = False     # mat_type: False - Conductor-Dielectric bound,  True - Dielectric-Dielectric bound
+        self.obj_count = 0
+        self.sect_count = 0
+        self.mat_param = dict()
+        self.iter_idx = 0
+
+    def __iter__(self):
+        self.iter_idx = 0
+        return self
+
+    def next(self):
+        self.iter_idx += 1
+        if self.iter_idx > len(self.list_cond) + len(self.list_diel):
+            raise StopIteration
+        if self.iter_idx <= len(self.list_cond):
+            return self.list_cond[self.iter_idx-1]
+        else:
+            return self.list_diel[self.iter_idx-len(self.list_cond)-1]
+
+    ## \fn is_intersection
+    # \brief The function checking the two boundaries on intersection
+    # \param sect1 \param sect2 two object of Section type
+    def is_intersection(self, sect1, sect2):
+        # Coeficients of Ax+By+D=0
+        a1 = -sect1.dy
+        b1 =  sect1.dx
+        d1 = -(a1*sect1.beg.x + b1*sect1.beg.y)
+        a2 = -sect2.dy
+        b2 =  sect2.dx
+        d2 = -(a2*sect2.beg.x + b2*sect2.beg.y)
+
+        # Calculate halfplane of sections ends
+        seg1_line2_start = a2*sect1.beg.x + b2*sect1.beg.y + d2
+        seg1_line2_end   = a2*sect1.end.x + b2*sect1.end.y + d2
+        seg2_line1_start = a1*sect2.beg.x + b1*sect2.beg.y + d1
+        seg2_line1_end   = a1*sect2.end.x + b1*sect2.end.y + d1
+
+        h1 = seg1_line2_start*seg1_line2_end
+        h2 = seg2_line1_start*seg2_line1_end
+
+        # Ends located in the different halfplane
+        if h1 < 0. and h2 < 0.:
+            return True
+        # Collinear (both ends of segments lie on one line)
+        if atan2(a1, b1) == atan2(a2, b2) and d1 == d2:
+            #   |------|======|------|
+            # fmin1  fmin2  fmax1  fmax2
+            fmin1 = min(sect1.beg.x, sect1.end.x)
+            fmin2 = min(sect2.beg.x, sect2.end.x)
+            fmax1 = max(sect1.beg.x, sect1.end.x)
+            fmax2 = max(sect2.beg.x, sect2.end.x)
+            if fmin1 < fmax2 and fmin2 < fmax1:
+                return True
+            fmin1 = min(sect1.beg.y, sect1.end.y)
+            fmin2 = min(sect2.beg.y, sect2.end.y)
+            fmax1 = max(sect1.beg.y, sect1.end.y)
+            fmax2 = max(sect2.beg.y, sect2.end.y)
+            if fmin1 < fmax2 and fmin2 < fmax1:
+                return True
+        return False
+    
+    ## \fn check_intersection
+    # \brief The function checking the added boundary on intersection with other boundaries 
+    def check_intersection(self, section):
+        return reduce(lambda r, bound: r or self.is_intersection(bound['section'], section), self, False)
+    
+    ## \fn is_ortho
+    # \brief The function checking the list of boundaries on orthogonality
+    def is_ortho(self):
+        return reduce(lambda r, bound: r and (bound['section'].dx==0.0 or bound['section'].dy==0.0), self, True)
+    
+    ## \fn add
+    # \brief Boundary addition
+    # \param section - Section() object
+    # \param n_subint - number of subintervals
+    def add(self, section, n_subint=1):
+        if type(section) is Section and type(n_subint) is int:
+            if self.check_intersection(section):
+                raise ValueError
+            bound = {'section': section,
+                     'n_subint': n_subint,
+                     'mat_param': self.mat_param,
+                     'obj_count': self.obj_count,
+                     'sect_count': self.sect_count}
+            if self.mat_type:
+                self.list_diel.append(bound)
+            else:
+                bound['grounded'] = self.grounded
+                self.list_cond.append(bound)
+            self.sect_count += 1
+        else:
+            raise TypeError
+
+    ## \fn cond
+    # \brief Conductor properties setting
+    # \param mat_param - dictionary which can have following entries:
+    #  erp - relative permittivity on right side of section,  erm - on left side
+    #  tdp, tdm - dielectric loss tangent
+    #  mup, mum - relative magnetic permeability
+    def cond(self, **mat_param):
+        self.grounded = False
+        self.mat_param = mat_param
+        self.mat_type = False
+        self.obj_count += 1
+        self.sect_count = 0
+
+    def ground_cond(self, **mat_param):
+        self.grounded = True
+        self.mat_param = mat_param
+        self.mat_type = False
+        self.obj_count += 1
+        self.sect_count = 0
+
+    def diel(self, **mat_param):
+        self.mat_param = mat_param
+        self.mat_type = True
+        self.obj_count += 1
+        self.sect_count = 0
+
+    ## \function set_subintervals
+    #  \brief set number of a segments for the each boundary of the structure
+    #  \param n_subint number of the segments
+    def set_subintervals(self, n_subint):
+        for bound in self:
+            bound['n_subint'] = n_subint
+
+    ## \function autosegment
+    #  \brief calculate and set number of a segments to length subinterval for the each boundary of the structure
+    #  \param length length of subinterval
+    def len_subint(self, length):
+        for bound in self:
+            bound['n_subint'] = int(round(bound['section'].len/length))
+
+    def adaptive_segment(self, criterion):
+        pass
+
+    def smart_segment(self):
+        pass
+
 
 ## \class Smn
 # \brief Matrix which binds a vector of charges and a vector of potential
 class Smn(object):
-    def __init__(self, conf):
-        if type(conf) is not Structure:
+    def __init__(self, structure):
+        if type(structure) is not Structure:
             raise TypeError
-        self.list_cond = conf.list_cond
-        self.list_diel = conf.list_diel
-        self.not_grounded_cond = filter(lambda x: not x['grounded'], self.list_cond)
-        if len(self.not_grounded_cond) <= 0:
+        self.structure = structure
+        self.structure.not_grounded_cond = filter(lambda x: not x['grounded'], self.structure.list_cond)
+        self.structure.list_diel_C = filter(lambda x: x['mat_param'].get('erp', 1.0) != x['mat_param'].get('erm', 1.0), self.structure.list_diel)
+        self.structure.list_diel_L = filter(lambda x: x['mat_param'].get('mup', 1.0) != x['mat_param'].get('mum', 1.0), self.structure.list_diel)
+        if len(self.structure.not_grounded_cond) <= 0:
             raise ValueError('Not grounded conductors is not exist')
-        self.iflg = conf.iflg
-        self.nc = reduce(lambda r, x: r + x['n_subint'], self.list_cond, 0)
-        self.n_cond = len(set(map(lambda x: x['obj_count'], self.not_grounded_cond)))
-        self.exc_v0 = numpy.zeros((self.nc, self.n_cond))
-        beg, n, old_cond = 0, 0, self.not_grounded_cond[0]['obj_count']
-        for bound in self.list_cond:
+        self.structure.nc = reduce(lambda r, x: r + x['n_subint'], self.structure.list_cond, 0)
+        self.structure.n_cond = len(set(map(lambda x: x['obj_count'], self.structure.not_grounded_cond)))
+        nd = 0
+        if not self.structure.iflg:
+            nd = 1
+        self.structure.nd_C = reduce(lambda r, x: r + x['n_subint'], self.structure.list_diel_C, nd)
+        self.structure.nd_L = reduce(lambda r, x: r + x['n_subint'], self.structure.list_diel_L, nd)
+        self.exc_v0 = numpy.zeros((self.structure.nc, self.structure.n_cond))
+        beg, n, old_cond = 0, 0, self.structure.not_grounded_cond[0]['obj_count']
+        for bound in self.structure.list_cond:
+            section = bound['section']
+            bound['_section_'] = [section.beg.x, section.beg.y, section.end.x, section.end.y]
             end = beg + bound['n_subint']
             if not bound['grounded']:
                 if old_cond != bound['obj_count']:
@@ -585,69 +590,29 @@ class Smn(object):
                 old_cond = bound['obj_count']
                 self.exc_v0[beg: end, n] = Coef_C
             beg = end
-        self.S00 = numpy.zeros((self.nc, self.nc), dtype=numpy.float64)
-        self._calcSmn_(self.S00, self.list_cond, self.list_cond, False)
+        for bound in self.structure.list_diel:
+            section = bound['section']
+            bound['_section_'] = [section.beg.x, section.beg.y, section.end.x, section.end.y]
+        self.S00 = numpy.zeros((self.structure.nc, self.structure.nc), dtype=numpy.float64)
+        self._calcSmn_(self.S00, self.structure.list_cond, self.structure.list_cond, False)
         self.diag_S00 = self.S00.diagonal()
         self.is_inv_S00 = False
 
 # TODO: any and ortho functions.  
     def _calcSmn_(self, block_S, list1, list2, bDiel):
-        for bounds in self.list_cond:
-            section = bounds['section']
-            bounds['_section_'] = [section.beg.x, section.beg.y, section.end.x, section.end.y]
-        for bounds in self.list_diel:
-            section = bounds['section']
-            bounds['_section_'] = [section.beg.x, section.beg.y, section.end.x, section.end.y]
-        if type(block_S) is not numpy.ndarray or \
-           not numpy.issubdtype(block_S.dtype, numpy.float64) or \
-           type(list1) is not list or \
-           type(list2) is not list:
-            raise TypeError
-        if len(block_S.shape) == 2 and \
-           block_S.shape[0] == reduce(lambda r, x: r + x['n_subint'], list1, 0) and \
-           block_S.shape[1] == reduce(lambda r, x: r + x['n_subint'], list2, 0):
-
-#            if list1.is_ortho and list2.is_ortho:
-#                _smn.ortho(block_S, list1, list2, bDiel, self.iflg)
-#            else:
-            _smn.any(block_S, list1, list2, bDiel, self.iflg)
+        if self.structure.is_ortho:
+            _smn.any(block_S, list1, list2, bDiel, self.structure.iflg)
         else:
-            raise ValueError('Matrix size correspond not structure size')
-
-    @property
-    def list_diel_C(self):
-        return filter(lambda x:
-                      x['mat_param'].get('erp', 1.0) != x['mat_param'].get('erm', 1.0),
-                      self.list_diel)
-
-    @property
-    def list_diel_L(self):
-        return filter(lambda x:
-                      x['mat_param'].get('mup', 1.0) != x['mat_param'].get('mum', 1.0),
-                      self.list_diel)
-
-    @property
-    def nd_C(self):
-        nd = 0
-        if not self.iflg:
-            nd = 1
-        return reduce(lambda r, x: r + x['n_subint'], self.list_diel_C, nd)
-
-    @property
-    def nd_L(self):
-        nd = 0
-        if not self.iflg:
-            nd = 1
-        return reduce(lambda r, x: r + x['n_subint'], self.list_diel_L, nd)
+            _smn.any(block_S, list1, list2, bDiel, self.structure.iflg)
 
     def fill_SC(self):
-        nc=self.nc
-        nd=self.nd_C
+        nc=self.structure.nc
+        nd=self.structure.nd_C
         S01_C = numpy.zeros((nc, nd), dtype=numpy.float64)
         S10_C = numpy.zeros((nd, nc), dtype=numpy.float64)
         S11_C = numpy.zeros((nd, nd), dtype=numpy.float64)
-        list_cond = self.list_cond
-        list_diel = self.list_diel_C
+        list_cond = self.structure.list_cond
+        list_diel = self.structure.list_diel_C
         self._calcSmn_(S01_C, list_cond, list_diel, False)
         self._calcSmn_(S10_C, list_diel, list_cond, True)
         self._calcSmn_(S11_C, list_diel, list_diel, True)
@@ -660,10 +625,10 @@ class Smn(object):
                 S11_C[m, m] += er
                 m += 1
         self.matrix_SC = Matrix(self.S00, S01_C, S10_C, S11_C)
-        if not self.iflg:
-            lastC = self.nd_C-1
+        if not self.structure.iflg:
+            lastC = self.structure.nd_C-1
             n = 0
-            for bound in self.list_cond:
+            for bound in list_cond:
                 section_m = bound['section']
                 n_subint_m = bound['n_subint']
                 for si in xrange(n_subint_m):
@@ -673,13 +638,13 @@ class Smn(object):
                     n += 1
     
     def fill_SL(self):
-        nc=self.nc
-        nd=self.nd_L
+        nc=self.structure.nc
+        nd=self.structure.nd_L
         S01_L = numpy.zeros((nc, nd), dtype=numpy.float64)
         S10_L = numpy.zeros((nd, nc), dtype=numpy.float64)
         S11_L = numpy.zeros((nd, nd), dtype=numpy.float64)
-        list_cond = self.list_cond
-        list_diel = self.list_diel_L
+        list_cond = self.structure.list_cond
+        list_diel = self.structure.list_diel_L
         self._calcSmn_(S01_L, list_cond, list_diel, False)
         self._calcSmn_(S10_L, list_diel, list_cond, True)
         self._calcSmn_(S11_L, list_diel, list_diel, True)
@@ -692,10 +657,10 @@ class Smn(object):
                 S11_L[m, m] += mu
                 m += 1
         self.matrix_SL = Matrix(self.S00, S01_L, S10_L,  S11_L)
-        if not self.iflg:
-            lastL = self.nd_L-1
+        if not self.structure.iflg:
+            lastL = self.structure.nd_L-1
             n = 0
-            for bound in self.list_cond:
+            for bound in list_cond:
                 section_m = bound['section']
                 n_subint_m = bound['n_subint']
                 for si in xrange(n_subint_m):
@@ -717,37 +682,37 @@ class Smn(object):
         self.matrix_SL.factorize()
 
     def solve_SC(self):
-        matrix_Q = numpy.zeros((self.nc + self.nd_C, self.n_cond))
-        matrix_Q[:self.nc] = self.exc_v0
+        matrix_Q = numpy.zeros((self.structure.nc + self.structure.nd_C, self.structure.n_cond))
+        matrix_Q[:self.structure.nc] = self.exc_v0
         return self.matrix_SC.solve(matrix_Q)
 
     def solve_SL(self):
-        matrix_Q = numpy.zeros((self.nc + self.nd_L, self.n_cond))
-        matrix_Q[:self.nc] = self.exc_v0
+        matrix_Q = numpy.zeros((self.structure.nc + self.structure.nd_L, self.structure.n_cond))
+        matrix_Q[:self.structure.nc] = self.exc_v0
         return self.matrix_SL.solve(matrix_Q)
 
     def iterative_C(self, M):
-        matrix_Q = numpy.zeros((self.nc + self.nd_C, self.n_cond))
-        matrix_Q[:self.nc] = self.exc_v0
+        matrix_Q = numpy.zeros((self.structure.nc + self.structure.nd_C, self.structure.n_cond))
+        matrix_Q[:self.structure.nc] = self.exc_v0
         return self.matrix_SC.iterative(M.matrix_SC, matrix_Q)
 
     def iterative_L(self, M):
-        matrix_Q = numpy.zeros((self.nc + self.nd_L, self.n_cond))
-        matrix_Q[:self.nc] = self.exc_v0
+        matrix_Q = numpy.zeros((self.structure.nc + self.structure.nd_L, self.structure.n_cond))
+        matrix_Q[:self.structure.nc] = self.exc_v0
         return self.matrix_SL.iterative(M.matrix_SL, matrix_Q)
 
 
 class RLGC(object):
-    def __init__(self, conf):
+    def __init__(self, structure):
         self.is_calc_C, self.is_calc_L = False, False
-        self.smn = Smn(conf)
+        self.smn = Smn(structure)
         self.is_updated = False
 
-    def update(self, conf):
+    def update(self, structure):
         if not self.is_updated:
             self.precondition = self.smn
             self.is_updated = True
-        self.smn = Smn(conf)
+        self.smn = Smn(structure)
         if self.is_calc_C:
             self.smn.fill_SC()
             self.matrix_QC = self.smn.iterative_C(self.precondition)
@@ -764,12 +729,12 @@ class RLGC(object):
         self.smn.fill_SC()
         self.smn.factorize_SC()
         self.matrix_QC = self.smn.solve_SC()
-        self.mC = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
+        self.mC = numpy.zeros((self.smn.structure.n_cond, self.smn.structure.n_cond))
         self._calc_C()
     
     def _calc_C(self):
-        beg, m, old_cond = 0, 0, self.smn.not_grounded_cond[0]['obj_count']
-        for bound in self.smn.list_cond:
+        beg, m, old_cond = 0, 0, self.smn.structure.not_grounded_cond[0]['obj_count']
+        for bound in self.smn.structure.list_cond:
             end = beg + bound['n_subint']
             if not bound['grounded']:
                 if old_cond != bound['obj_count']:
@@ -779,8 +744,8 @@ class RLGC(object):
             if not bound['grounded']:
                 for j, i in enumerate(xrange(beg, end)):
                     subint_len = bound['section'].getSubinterval(j, bound['n_subint']).len
-                    self.matrix_QC[i, 0:self.smn.n_cond] *= subint_len*erp
-                for n in xrange(self.smn.n_cond):
+                    self.matrix_QC[i, 0:self.smn.structure.n_cond] *= subint_len*erp
+                for n in xrange(self.smn.structure.n_cond):
                     self.mC[m, n] += self.matrix_QC[beg: end, n].sum()
             beg = end
     
@@ -789,12 +754,12 @@ class RLGC(object):
         self.smn.fill_SL()
         self.smn.factorize_SL()
         self.matrix_QL = self.smn.solve_SL()
-        self.mL = numpy.zeros((self.smn.n_cond, self.smn.n_cond))
+        self.mL = numpy.zeros((self.smn.structure.n_cond, self.smn.structure.n_cond))
         self._calc_L()
     
     def _calc_L(self):
-        beg, m, old_cond = 0, 0, self.smn.not_grounded_cond[0]['obj_count']
-        for bound in self.smn.list_cond:
+        beg, m, old_cond = 0, 0, self.smn.structure.not_grounded_cond[0]['obj_count']
+        for bound in self.smn.structure.list_cond:
             end = beg + bound['n_subint']
             if not bound['grounded']:
                 if old_cond != bound['obj_count']:
@@ -804,8 +769,8 @@ class RLGC(object):
             if not bound['grounded']:
                 for j, i in enumerate(xrange(beg, end)):
                     subint_len = bound['section'].getSubinterval(j, bound['n_subint']).len
-                    self.matrix_QL[i, 0:self.smn.n_cond] *= subint_len/mup
-                for n in xrange(self.smn.n_cond):
+                    self.matrix_QL[i, 0:self.smn.structure.n_cond] *= subint_len/mup
+                for n in xrange(self.smn.structure.n_cond):
                     self.mL[m, n] += self.matrix_QL[beg: end, n].sum()
             beg = end
         self.mL = la.inv(self.mL)/(V0*V0)
