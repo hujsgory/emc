@@ -157,6 +157,115 @@ static PyObject * _smn_any(PyObject * self, PyObject * args){
 static char _smn_ortho_doc[]="Value of matrix S calculation for orthogonal structure";
 
 static PyObject * _smn_ortho(PyObject * self, PyObject * args){
+    npy_bool bDiel=0, iflg=1;
+    PyObject  *py_list1=NULL, *py_list2=NULL;
+    PyArrayObject *block_S=NULL;
+    PyArg_ParseTuple(args,"OOObb", &block_S, &py_list1, &py_list2, &bDiel, &iflg);
+    npy_double * data=(npy_double *)PyArray_DATA(block_S);
+
+    Py_ssize_t len_list1 = PyList_Size(py_list1);
+    Py_ssize_t len_list2 = PyList_Size(py_list2);
+    for (Py_ssize_t idx_list1=0; idx_list1<len_list1; idx_list1++){
+        PyObject * bound_m=PyList_GetItem(py_list1,idx_list1);
+        PyObject * section_m=PyDict_GetItemString(bound_m,"_section_");
+        npy_double m_begx = PyFloat_AsDouble(PyList_GetItem(section_m,0));
+        npy_double m_begy = PyFloat_AsDouble(PyList_GetItem(section_m,1));
+        npy_double m_endx = PyFloat_AsDouble(PyList_GetItem(section_m,2));
+        npy_double m_endy = PyFloat_AsDouble(PyList_GetItem(section_m,3));
+        short len_bound_m = (short)PyLong_AsLong((PyObject *)PyDict_GetItemString(bound_m,"n_subint"));
+        npy_double sinm   = sint(m_endx-m_begx,m_endy-m_begy);
+        npy_double cosm   = cost(m_endx-m_begx,m_endy-m_begy);
+        for(short i=0; i<len_bound_m; i++){
+            npy_double subs_i_begx=getBegSubint(m_begx,m_endx,i,len_bound_m);
+            npy_double subs_i_endx=getEndSubint(m_begx,m_endx,i,len_bound_m);
+            npy_double subs_i_begy=getBegSubint(m_begy,m_endy,i,len_bound_m);
+            npy_double subs_i_endy=getEndSubint(m_begy,m_endy,i,len_bound_m);
+            npy_double xm=center(subs_i_begx,subs_i_endx),ym=center(subs_i_begy,subs_i_endy);
+            int n=0;
+            for (Py_ssize_t idx_list2=0; idx_list2<len_list2; idx_list2++){
+                PyObject * bound_n=PyList_GetItem(py_list2,idx_list2);
+                PyObject * section_n=PyDict_GetItemString(bound_n,"_section_");
+                npy_double n_begx = PyFloat_AsDouble(PyList_GetItem(section_n,0));
+                npy_double n_begy = PyFloat_AsDouble(PyList_GetItem(section_n,1));
+                npy_double n_endx = PyFloat_AsDouble(PyList_GetItem(section_n,2));
+                npy_double n_endy = PyFloat_AsDouble(PyList_GetItem(section_n,3));
+                short len_bound_n = (short)PyLong_AsLong(PyDict_GetItemString(bound_n,"n_subint"));
+                npy_double sinn   = sint(n_endx-n_begx,n_endy-n_begy);
+                npy_double cosn   = cost(n_endx-n_begx,n_endy-n_begy);
+                for (short j=0;j<len_bound_n;j++){
+                    npy_double subs_j_begx=getBegSubint(n_begx,n_endx,j,len_bound_n);
+                    npy_double subs_j_endx=getEndSubint(n_begx,n_endx,j,len_bound_n);
+                    npy_double subs_j_begy=getBegSubint(n_begy,n_endy,j,len_bound_n);
+                    npy_double subs_j_endy=getEndSubint(n_begy,n_endy,j,len_bound_n);
+                    npy_double xn  = center(subs_j_begx,subs_j_endx),yn=center(subs_j_begy,subs_j_endy);
+					npy_double dn  = hypot(subs_j_endx-subs_j_begx,subs_j_endy-subs_j_begy);
+                    npy_double dn2 = dn/2.0;
+                    npy_double dx  = xm - xn;
+					npy_double a1  = dn2 - dx;
+					npy_double a2  = a1 - dn;
+					npy_double c1  = ym - yn;
+					npy_double c2  = ym +- yn;
+					npy_double da= dn * cosn;
+                    if(!_bDiel) {
+                        fi= -FI(a1, a2, c1, dn);
+                        if(iflg) {
+                            if(sinn==0)
+                                fi+=FI(a1, a2, c2, dn);
+                            else 
+                                fi+=FI(a1+2*ym, a2+2*ym, c2, dn);
+                        }    
+                    }
+                    else {
+                        if(sinm==0) {
+                            if(sinn==0){
+                                if(c1)  
+                                    fi= sumatan(a1,-a2,c1);
+                                else 
+                                    fi= 0;
+                                if (_bInfiniteGround && (c2!=0))
+                                    fi-= sumatan(a1,-a2,c2);
+                            }
+                            else {  
+                                fp_type tmp3= c1*c1; 
+                                fi= 0.5*log((a2*a2+tmp3)/(a1*a1+tmp3));
+                                if (_bInfiniteGround) {
+                                    fp_type tmp1= a1+2*ym, tmp2= tmp1- dn;
+                                    fi-= 0.5*log((tmp2*tmp2+tmp3)/(tmp1*tmp1+tmp3));
+                                }
+                            }
+                            fi*= negcosm;
+                        }
+                        else { 
+                            if(sinn==0) { 
+                                fi= 0.5*log((a2*a2+c1*c1)/(a1*a1+c1*c1));
+                                if (iflg) {
+                                    fi-= 0.5*log((a2*a2+c2*c2)/(a1*a1+c2*c2));
+                                }
+                            } 
+                            else {
+                                if(c1) 
+                                    fi= sumatan(a1,-a2,c1);
+                                else 
+                                    fi= 0;
+                                if (_bInfiniteGround && (c2!=0))
+                                    fi-= sumatan(a1+2*ym,-a2-2*ym,c2);
+                            }
+                            fi*= sinm;
+                        }
+                        if(m==n) 
+                            fi+= er_plus;
+                    }
+                    if(m==n && m>= _Nc){
+                        _tmp_matrix->mw(m-_Nc,0)=fi;
+                    }
+                    else{
+                        *data = fi;
+                    }                          
+                    data++;
+                }
+            }
+        }
+    }
     return Py_BuildValue("i",1);
 }
 
