@@ -15,8 +15,13 @@ class StackEditor():
         self.menubar.add_command(label='Save', command=self.savefile)
         self.menubar.add_command(label='Close', command=self.closefile)
         self.parent.config(menu=self.menubar)
-        self.txt=tk.Text(self.parent)
-        self.txt.pack()
+        self.txt = tk.Text(self.parent,font='12',height=7)
+        self.txt.grid(column=0, row=0, sticky=tk.E+tk.W)
+        self.txt.bind('<Return>', self.redraw)
+        self.txt.bind('<Up>', self.redraw)
+        self.txt.bind('<Down>', self.redraw)
+        self.canvas = tk.Canvas(self.parent)
+        self.canvas.grid(column=0, row=1, sticky=tk.E+tk.W)
         self.filename = ''
 
     def openfile(self):
@@ -24,7 +29,7 @@ class StackEditor():
         if fn:
             self.txt.delete('1.0',tk.END)
             self.txt.insert(tk.INSERT, fn.read())
-            self.filename=fn.name
+            self.filename = fn.name
             fn.close()
         
     def savefile(self):
@@ -32,14 +37,17 @@ class StackEditor():
             fn=tkFileDialog.asksaveasfile()
             if fn:
                 fn.write(self.txt.get('1.0',tk.END))
-                self.filename=fn.name
+                self.filename = fn.name
                 fn.close()
         else:
             open(self.filename,'w').write(self.txt.get('1.0',tk.END))
 
     def closefile(self):
-        self.filename=''
+        self.filename = ''
         self.txt.delete('1.0',tk.END)
+
+    def redraw(self, event):
+        pass
 
 
 if __name__ == "__main__":

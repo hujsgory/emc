@@ -4,7 +4,7 @@ from math import *
 import numpy
 import numpy.linalg as la
 import _smn
-import scipy.sparse.linalg.isolve.iterative as it
+import scipy.sparse.linalg as it
 
 eps0 = 8.854187817e-12 # dielectric constant
 Coef_C = 4*pi*eps0
@@ -155,7 +155,7 @@ class Board(object):
                             'cond': list()})
 
 # FIXME: need to add approximate comparison for float numbers
-    def to_structure(self):
+    def postprocess(self):
         structure = Structure()
         # Calculation of structure's right coordinate x
 # FIXME: x['cond'][0]['space'] may be raised exception
@@ -303,7 +303,7 @@ class Board(object):
                 beg = Coord(x_left,  y_layer + cover[-1]['thickness'])
                 end = Coord(x_right, y_layer + cover[-1]['thickness'])
                 structure.add(Section(beg, end))
-        return structure
+        return structure.postprocess()
 
 
 ## \class Matrix
@@ -363,7 +363,7 @@ class Matrix(object):
     #  \brief Stabilized bi-conjugate gradient method with preconditioning (BiCGStab)
     #  \param M Matrix object with factorized matrixes S
     #  \param b vector of right-hand members
-    def iterative(self, M, b, tol = 1e-16, max_iter = 50):
+    def iterative(self, M, b, tol = 1e-30, max_iter = 50):
         #it.bicgstab(A=,M=M)
         nc = self.nc
         nd = self.nd
@@ -558,6 +558,20 @@ class Structure(object):
     def smart_segment(self):
         pass
 
+    def postprocess(self):
+        self.not_grounded_cond = filter(lambda x: not x['grounded'], self.list_cond)
+        if len(self.not_grounded_cond) <= 0:
+            raise ValueError('Not grounded conductors is not exist')
+        self.nc = reduce(lambda r, x: r + x['n_subint'], self.list_cond, 0)
+        self.n_cond = len(set(map(lambda x: x['obj_count'], self.not_grounded_cond)))
+        self.list_diel_C = filter(lambda x: x['mat_param'].get('erp', 1.0) != x['mat_param'].get('erm', 1.0), self.list_diel)
+        self.list_diel_L = filter(lambda x: x['mat_param'].get('mup', 1.0) != x['mat_param'].get('mum', 1.0), self.list_diel)
+        self.nd_C = reduce(lambda r, x: r + x['n_subint'], self.list_diel_C, 0)
+        self.nd_L = reduce(lambda r, x: r + x['n_subint'], self.list_diel_L, 0)
+        if not self.iflg:
+            self.nd_C += 1
+            self.nd_L += 1
+        return self
 
 ## \class Smn
 # \brief Matrix which binds a vector of charges and a vector of potential
@@ -778,4 +792,44 @@ class RLGC(object):
     def calc_LC(self):
         self.calc_L()
         self.calc_C()
-        
+
+
+class new_RLGC(object):
+    def __init__(self,structure):
+        self.structure=structure.postprocess()
+        self.is_calc_C, self.is_calc_L = False, False
+
+    def L(self):
+        self.is_calc_L = True
+        pass
+
+    def C(self):
+        self.is_calc_C = True
+        nc = self.structure.nc
+        nd = self.structure.nd_C
+        n_cond = self.structure.n_cond
+        list_cond = self.structure.list_cond
+        self.smnC = numpy.zeros((nc+nd,nc+nd))
+        S00 = self.smnC[:nc, :nc]
+        S01 = self.smnC[:nc, nc:]
+        S10 = self.smnC[nc:, :nc]
+        S11 = self.smnC[nc:, nc:]
+        self.mC = numpy.zeros((n_cond,n_cond))
+        if self.is_calc_L:
+            S00[:] = self.smnL[:nc,:nc]
+        else:
+            self.smn(S00,list_cond,list_cond,False)
+        self.smn(S01, list_cond, list_diel, False)
+        self.smn(S10, list_diel, list_cond, True)
+        self.smn(S11, list_diel, list_diel, True)
+        return self.mC
+
+# TODO: any and ortho functions.
+    def smn(self, block_S, list1, list2, bDiel):
+        if self.structure.is_ortho:
+            _smn.any(block_S, list1, list2, bDiel, self.structure.iflg)
+        else:
+            _smn.any(block_S, list1, list2, bDiel, self.structure.iflg)
+
+    def update(self, structure):
+        pass
