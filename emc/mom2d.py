@@ -2,7 +2,7 @@
 #coding:  utf8
 from math import *
 import numpy
-import numpy.linalg as la
+import scipy.linalg as la
 import _smn
 import scipy.sparse.linalg as it
 
@@ -306,64 +306,11 @@ class Board(object):
         return structure.postprocess()
 
 
-## \class Matrix
-#  \brief Container for blocks of matrix S and related methods
-class Matrix(object):
-    def __init__(self, A00, A01, A10, A11):
-        if type(A00) is numpy.ndarray:
-            self.A00 = A00
-            #self.copy_A00 = A00.copy()
-            self.nc = A00.shape[0]
-            #self.norm_A00 = la.norm(self.A00)
-        else:
-            raise ValueError
-        if type(A01) is numpy.ndarray and type(A10) is numpy.ndarray and type(A11) is numpy.ndarray:
-            if A00.shape[0] == A01.shape[0] and A10.shape[0] == A11.shape[0] and A00.shape[1] == A10.shape[1] and A01.shape[1] == A11.shape[1]:
-                self.A01, self.A10, self.A11 = A01, A10, A11
-                #self.copy_A01, self.copy_A10, self.copy_A11 = A01.copy(), A10.copy(), A11.copy()
-                self.nd=A01.shape[1]
-                #self.norm_A01 = la.norm(self.A01)
-                #self.norm_A10 = la.norm(self.A10)
-                #self.norm_A11 = la.norm(self.A11)
-            else:
-                self.nd = 0
-                #self.norm_A01, self.norm_A10, self.norm_A11 = 0.0, 0.0, 0.0
-
-    def factorize(self):
-        if self.nd > 0:
-            self.A10[:] = numpy.dot(self.A10, self.A00)
-            self.A11 -= numpy.dot(self.A10, self.A01)
-            self.A11[:] = la.inv(self.A11)
-
-    def solve(self, b):
-        nc = self.nc
-        nd = self.nd
-        x = b.copy()
-        if self.nd > 0:
-            x[nc:] -= numpy.dot(self.A10, x[:nc])
-            x[nc:]  = numpy.dot(self.A11, x[nc:])
-            x[:nc] -= numpy.dot(self.A01, x[nc:])
-        x[:nc] = numpy.dot(self.A00, x[:nc])
-        return x
-
-    # c = A*b
-    def dot(self, b, c=None):
-        nc = self.nc
-        nd = self.nd
-        if c == None:
-            c = numpy.zeros((nc + nd, b.shape[1]))
-        if nd > 0:
-            c[:nc] = numpy.dot(self.A00, b[:nc]) + numpy.dot(self.A01, b[nc:])
-            c[nc:] = numpy.dot(self.A10, b[:nc]) + numpy.dot(self.A11, b[nc:])
-        else:
-            c[:] = numpy.dot(self.A00, b)
-        return c
-
     ## \function iterative
     #  \brief Stabilized bi-conjugate gradient method with preconditioning (BiCGStab)
     #  \param M Matrix object with factorized matrixes S
     #  \param b vector of right-hand members
-    def iterative(self, M, b, tol = 1e-30, max_iter = 50):
+def iterative(self, M, b, tol = 1e-30, max_iter = 50):
         #it.bicgstab(A=,M=M)
         nc = self.nc
         nd = self.nd
@@ -571,237 +518,58 @@ class Structure(object):
         if not self.iflg:
             self.nd_C += 1
             self.nd_L += 1
+        for bound in self:
+            section = bound['section']
+            bound['_section_'] = [section.beg.x, section.beg.y, section.end.x, section.end.y]
         return self
 
-## \class Smn
+
 # \brief Matrix which binds a vector of charges and a vector of potential
-class Smn(object):
-    def __init__(self, structure):
-        if type(structure) is not Structure:
-            raise TypeError
-        self.structure = structure
-        self.structure.not_grounded_cond = filter(lambda x: not x['grounded'], self.structure.list_cond)
-        self.structure.list_diel_C = filter(lambda x: x['mat_param'].get('erp', 1.0) != x['mat_param'].get('erm', 1.0), self.structure.list_diel)
-        self.structure.list_diel_L = filter(lambda x: x['mat_param'].get('mup', 1.0) != x['mat_param'].get('mum', 1.0), self.structure.list_diel)
-        if len(self.structure.not_grounded_cond) <= 0:
-            raise ValueError('Not grounded conductors is not exist')
-        self.structure.nc = reduce(lambda r, x: r + x['n_subint'], self.structure.list_cond, 0)
-        self.structure.n_cond = len(set(map(lambda x: x['obj_count'], self.structure.not_grounded_cond)))
-        nd = 0
-        if not self.structure.iflg:
-            nd = 1
-        self.structure.nd_C = reduce(lambda r, x: r + x['n_subint'], self.structure.list_diel_C, nd)
-        self.structure.nd_L = reduce(lambda r, x: r + x['n_subint'], self.structure.list_diel_L, nd)
-        self.exc_v0 = numpy.zeros((self.structure.nc, self.structure.n_cond))
-        beg, n, old_cond = 0, 0, self.structure.not_grounded_cond[0]['obj_count']
-        for bound in self.structure.list_cond:
-            section = bound['section']
-            bound['_section_'] = [section.beg.x, section.beg.y, section.end.x, section.end.y]
-            end = beg + bound['n_subint']
-            if not bound['grounded']:
-                if old_cond != bound['obj_count']:
-                    n += 1
-                old_cond = bound['obj_count']
-                self.exc_v0[beg: end, n] = Coef_C
-            beg = end
-        for bound in self.structure.list_diel:
-            section = bound['section']
-            bound['_section_'] = [section.beg.x, section.beg.y, section.end.x, section.end.y]
-        self.S00 = numpy.zeros((self.structure.nc, self.structure.nc), dtype=numpy.float64)
-        self._calcSmn_(self.S00, self.structure.list_cond, self.structure.list_cond, False)
-        self.diag_S00 = self.S00.diagonal()
-        self.is_inv_S00 = False
-
-# TODO: any and ortho functions.  
-    def _calcSmn_(self, block_S, list1, list2, bDiel):
-        if self.structure.is_ortho:
-            _smn.any(block_S, list1, list2, bDiel, self.structure.iflg)
-        else:
-            _smn.any(block_S, list1, list2, bDiel, self.structure.iflg)
-
-    def fill_SC(self):
-        nc=self.structure.nc
-        nd=self.structure.nd_C
-        S01_C = numpy.zeros((nc, nd), dtype=numpy.float64)
-        S10_C = numpy.zeros((nd, nc), dtype=numpy.float64)
-        S11_C = numpy.zeros((nd, nd), dtype=numpy.float64)
-        list_cond = self.structure.list_cond
-        list_diel = self.structure.list_diel_C
-        self._calcSmn_(S01_C, list_cond, list_diel, False)
-        self._calcSmn_(S10_C, list_diel, list_cond, True)
-        self._calcSmn_(S11_C, list_diel, list_diel, True)
-        m = 0
-        for bound in list_diel:
-            erp = bound['mat_param'].get('erp', 1.0)
-            erm = bound['mat_param'].get('erm', 1.0)
-            er = (erp + erm) * pi / (erp - erm)
-            for i in xrange(bound['n_subint']):
-                S11_C[m, m] += er
-                m += 1
-        self.matrix_SC = Matrix(self.S00, S01_C, S10_C, S11_C)
-        if not self.structure.iflg:
-            lastC = self.structure.nd_C-1
-            n = 0
-            for bound in list_cond:
-                section_m = bound['section']
-                n_subint_m = bound['n_subint']
-                for si in xrange(n_subint_m):
-                    subint_len = bound['section'].getSubinterval(i, n_subint_m).len
-                    self.matrix_SC.A01[n, lastC] = subint_len/self.diag_S00[n]
-                    self.matrix_SC.A10[lastC, n] = subint_len*bound_m['mat_param'].get('erp',  1.0)
-                    n += 1
-    
-    def fill_SL(self):
-        nc=self.structure.nc
-        nd=self.structure.nd_L
-        S01_L = numpy.zeros((nc, nd), dtype=numpy.float64)
-        S10_L = numpy.zeros((nd, nc), dtype=numpy.float64)
-        S11_L = numpy.zeros((nd, nd), dtype=numpy.float64)
-        list_cond = self.structure.list_cond
-        list_diel = self.structure.list_diel_L
-        self._calcSmn_(S01_L, list_cond, list_diel, False)
-        self._calcSmn_(S10_L, list_diel, list_cond, True)
-        self._calcSmn_(S11_L, list_diel, list_diel, True)
-        m = 0
-        for bound in list_diel:
-            mup = bound['mat_param'].get('mup', 1.0)
-            mum = bound['mat_param'].get('mum', 1.0)
-            mu = (mup + mum) * pi / (mum - mup)
-            for i in xrange(bound['n_subint']):
-                S11_L[m, m] += mu
-                m += 1
-        self.matrix_SL = Matrix(self.S00, S01_L, S10_L,  S11_L)
-        if not self.structure.iflg:
-            lastL = self.structure.nd_L-1
-            n = 0
-            for bound in list_cond:
-                section_m = bound['section']
-                n_subint_m = bound['n_subint']
-                for si in xrange(n_subint_m):
-                    subint_len = bound['section'].getSubinterval(i, n_subint_m).len
-                    self.matrix_SL.A01[n, lastL] = subint_len/self.diag_S00[n]
-                    self.matrix_SL.A10[lastL, n] = subint_len/bound_m['mat_param'].get('mup',  1.0)
-                    n += 1
-
-    def factorize_SC(self):
-        if not self.is_inv_S00:
-            self.S00[:] = la.inv(self.S00)
-            self.is_inv_S00 = True
-        self.matrix_SC.factorize()
-    
-    def factorize_SL(self):
-        if not self.is_inv_S00:
-            self.S00[:] = la.inv(self.S00)
-            self.is_inv_S00 = True
-        self.matrix_SL.factorize()
-
-    def solve_SC(self):
-        matrix_Q = numpy.zeros((self.structure.nc + self.structure.nd_C, self.structure.n_cond))
-        matrix_Q[:self.structure.nc] = self.exc_v0
-        return self.matrix_SC.solve(matrix_Q)
-
-    def solve_SL(self):
-        matrix_Q = numpy.zeros((self.structure.nc + self.structure.nd_L, self.structure.n_cond))
-        matrix_Q[:self.structure.nc] = self.exc_v0
-        return self.matrix_SL.solve(matrix_Q)
-
-    def iterative_C(self, M):
-        matrix_Q = numpy.zeros((self.structure.nc + self.structure.nd_C, self.structure.n_cond))
-        matrix_Q[:self.structure.nc] = self.exc_v0
-        return self.matrix_SC.iterative(M.matrix_SC, matrix_Q)
-
-    def iterative_L(self, M):
-        matrix_Q = numpy.zeros((self.structure.nc + self.structure.nd_L, self.structure.n_cond))
-        matrix_Q[:self.structure.nc] = self.exc_v0
-        return self.matrix_SL.iterative(M.matrix_SL, matrix_Q)
-
-
 class RLGC(object):
-    def __init__(self, structure):
-        self.is_calc_C, self.is_calc_L = False, False
-        self.smn = Smn(structure)
-        self.is_updated = False
-
-    def update(self, structure):
-        if not self.is_updated:
-            self.precondition = self.smn
-            self.is_updated = True
-        self.smn = Smn(structure)
-        if self.is_calc_C:
-            self.smn.fill_SC()
-            self.matrix_QC = self.smn.iterative_C(self.precondition)
-            self.mC[:,:] = 0.0
-            self._calc_C()
-        if self.is_calc_L:
-            self.smn.fill_SL()
-            self.matrix_QL = self.smn.iterative_L(self.precondition)
-            self.mL[:,:] = 0.0
-            self._calc_L()
-    
-    def calc_C(self):
-        self.is_calc_C = True
-        self.smn.fill_SC()
-        self.smn.factorize_SC()
-        self.matrix_QC = self.smn.solve_SC()
-        self.mC = numpy.zeros((self.smn.structure.n_cond, self.smn.structure.n_cond))
-        self._calc_C()
-    
-    def _calc_C(self):
-        beg, m, old_cond = 0, 0, self.smn.structure.not_grounded_cond[0]['obj_count']
-        for bound in self.smn.structure.list_cond:
-            end = beg + bound['n_subint']
-            if not bound['grounded']:
-                if old_cond != bound['obj_count']:
-                    m += 1
-                old_cond = bound['obj_count']
-            erp = bound['mat_param'].get('erp', 1.0)
-            if not bound['grounded']:
-                for j, i in enumerate(xrange(beg, end)):
-                    subint_len = bound['section'].getSubinterval(j, bound['n_subint']).len
-                    self.matrix_QC[i, 0:self.smn.structure.n_cond] *= subint_len*erp
-                for n in xrange(self.smn.structure.n_cond):
-                    self.mC[m, n] += self.matrix_QC[beg: end, n].sum()
-            beg = end
-    
-    def calc_L(self):
-        self.is_calc_L = True
-        self.smn.fill_SL()
-        self.smn.factorize_SL()
-        self.matrix_QL = self.smn.solve_SL()
-        self.mL = numpy.zeros((self.smn.structure.n_cond, self.smn.structure.n_cond))
-        self._calc_L()
-    
-    def _calc_L(self):
-        beg, m, old_cond = 0, 0, self.smn.structure.not_grounded_cond[0]['obj_count']
-        for bound in self.smn.structure.list_cond:
-            end = beg + bound['n_subint']
-            if not bound['grounded']:
-                if old_cond != bound['obj_count']:
-                    m += 1
-                old_cond = bound['obj_count']
-            mup = bound['mat_param'].get('mup', 1.0)
-            if not bound['grounded']:
-                for j, i in enumerate(xrange(beg, end)):
-                    subint_len = bound['section'].getSubinterval(j, bound['n_subint']).len
-                    self.matrix_QL[i, 0:self.smn.structure.n_cond] *= subint_len/mup
-                for n in xrange(self.smn.structure.n_cond):
-                    self.mL[m, n] += self.matrix_QL[beg: end, n].sum()
-            beg = end
-        self.mL = la.inv(self.mL)/(V0*V0)
-
-    def calc_LC(self):
-        self.calc_L()
-        self.calc_C()
-
-
-class new_RLGC(object):
     def __init__(self,structure):
         self.structure=structure.postprocess()
         self.is_calc_C, self.is_calc_L = False, False
+        self.exc_v = numpy.zeros((self.structure.nc, self.structure.n_cond))
+        beg, n, old_cond = 0, 0, self.structure.not_grounded_cond[0]['obj_count']
+        for bound in self.structure.list_cond:
+            section = bound['section']
+            end = beg + bound['n_subint']
+            if not bound['grounded']:
+                if old_cond != bound['obj_count']:
+                    n += 1
+                old_cond = bound['obj_count']
+                self.exc_v[beg:end, n] = Coef_C
+            beg = end
 
     def L(self):
         self.is_calc_L = True
-        pass
+        nc = self.structure.nc
+        nd = self.structure.nd_L
+        n_cond = self.structure.n_cond
+        list_cond = self.structure.list_cond
+        self.fill_Sl()
+        self.fact_Sl = la.lu_factor(self.Sl)
+        exc_v = numpy.zeros((nc+nd, n_cond))
+        exc_v[:nc] = self.exc_v
+        
+        self.Ql = la.lu_solve(self.fact_Sl, exc_v)
+        beg, m, old_cond = 0, 0, self.structure.not_grounded_cond[0]['obj_count']
+        for bound in list_cond:
+            end = beg + bound['n_subint']
+            if not bound['grounded']:
+                if old_cond != bound['obj_count']:
+                    m += 1
+                old_cond = bound['obj_count']
+            mup = bound['mat_param'].get('mup', 1.0)
+            if not bound['grounded']:
+                for j, i in enumerate(xrange(beg, end)):
+                    subint_len = bound['section'].getSubinterval(j, bound['n_subint']).len
+                    self.Ql[i, 0:n_cond] *= subint_len/mup
+                for n in xrange(n_cond):
+                    self.mL[m, n] += self.Ql[beg: end, n].sum()
+            beg = end
+        self.mL = la.inv(self.mL)/(V0*V0)
+        return self.mL
 
     def C(self):
         self.is_calc_C = True
@@ -809,27 +577,114 @@ class new_RLGC(object):
         nd = self.structure.nd_C
         n_cond = self.structure.n_cond
         list_cond = self.structure.list_cond
-        self.smnC = numpy.zeros((nc+nd,nc+nd))
-        S00 = self.smnC[:nc, :nc]
-        S01 = self.smnC[:nc, nc:]
-        S10 = self.smnC[nc:, :nc]
-        S11 = self.smnC[nc:, nc:]
-        self.mC = numpy.zeros((n_cond,n_cond))
-        if self.is_calc_L:
-            S00[:] = self.smnL[:nc,:nc]
-        else:
-            self.smn(S00,list_cond,list_cond,False)
-        self.smn(S01, list_cond, list_diel, False)
-        self.smn(S10, list_diel, list_cond, True)
-        self.smn(S11, list_diel, list_diel, True)
+        self.fill_Sc()
+        self.fact_Sc = la.lu_factor(self.Sc)
+        exc_v = numpy.zeros((nc+nd, n_cond))
+        exc_v[:nc] = self.exc_v
+        self.Qc = la.lu_solve(self.fact_Sc, exc_v)
+        beg, m, old_cond = 0, 0, self.structure.not_grounded_cond[0]['obj_count']
+        for bound in list_cond:
+            end = beg + bound['n_subint']
+            if not bound['grounded']:
+                if old_cond != bound['obj_count']:
+                    m += 1
+                old_cond = bound['obj_count']
+            erp = bound['mat_param'].get('erp', 1.0)
+            if not bound['grounded']:
+                for j, i in enumerate(xrange(beg, end)):
+                    subint_len = bound['section'].getSubinterval(j, bound['n_subint']).len
+                    self.Qc[i, 0:n_cond] *= subint_len*erp
+                for n in xrange(n_cond):
+                    self.mC[m, n] += self.Qc[beg: end, n].sum()
+            beg = end        
         return self.mC
 
-# TODO: any and ortho functions.
-    def smn(self, block_S, list1, list2, bDiel):
-        if self.structure.is_ortho:
-            _smn.any(block_S, list1, list2, bDiel, self.structure.iflg)
+    def fill_Sc(self):
+        nc = self.structure.nc
+        nd = self.structure.nd_C
+        n_cond = self.structure.n_cond
+        list_cond = self.structure.list_cond
+        list_diel = self.structure.list_diel_C
+        iflg = self.structure.iflg
+        self.Sc = numpy.zeros((nc+nd,nc+nd))
+        S00 = self.Sc[:nc, :nc]
+        S01 = self.Sc[:nc, nc:]
+        S10 = self.Sc[nc:, :nc]
+        S11 = self.Sc[nc:, nc:]
+        self.mC = numpy.zeros((n_cond,n_cond))
+        if self.is_calc_L:
+            S00[:] = self.Sl[:nc,:nc]
         else:
-            _smn.any(block_S, list1, list2, bDiel, self.structure.iflg)
+            _smn.any_cond(S00, list_cond, list_cond, nd, iflg)
+        _smn.any_cond(S01, list_cond, list_diel, nc, iflg)
+        _smn.any_diel(S10, list_diel, list_cond, nd, iflg)
+        _smn.any_diel(S11, list_diel, list_diel, nc, iflg)
+        m = 0
+        for bound in list_diel:
+            erp = bound['mat_param'].get('erp', 1.0)
+            erm = bound['mat_param'].get('erm', 1.0)
+            er = (erp + erm) * pi / (erp - erm)
+            for i in xrange(bound['n_subint']):
+                S11[m, m] += er
+                m += 1
+        if not iflg:
+            last = nd-1
+            n = 0
+            for bound in list_cond:
+                section_m = bound['section']
+                n_subint_m = bound['n_subint']
+                for si in xrange(n_subint_m):
+                    subint_len = bound['section'].getSubinterval(i, n_subint_m).len
+                    S01[n, last] = subint_len/S00[n, n]
+                    S10[last, n] = subint_len*bound_m['mat_param'].get('erp',  1.0)
+                    n += 1
+
+    def fill_Sl(self):
+        nc = self.structure.nc
+        nd = self.structure.nd_L
+        n_cond = self.structure.n_cond
+        list_cond = self.structure.list_cond
+        list_diel = self.structure.list_diel_L
+        iflg = self.structure.iflg
+        self.Sl = numpy.zeros((nc+nd,nc+nd))
+        S00 = self.Sl[:nc, :nc]
+        S01 = self.Sl[:nc, nc:]
+        S10 = self.Sl[nc:, :nc]
+        S11 = self.Sl[nc:, nc:]
+        self.mL = numpy.zeros((n_cond,n_cond))
+        if self.is_calc_C:
+            S00[:] = self.Sc[:nc,:nc]
+        else:
+            _smn.any_cond(S00, list_cond, list_cond, nd, iflg)
+        _smn.any_cond(S01, list_cond, list_diel, nc, iflg)
+        _smn.any_diel(S10, list_diel, list_cond, nd, iflg)
+        _smn.any_diel(S11, list_diel, list_diel, nc, iflg)
+        m = 0
+        for bound in list_diel:
+            mup = bound['mat_param'].get('mup', 1.0)
+            mum = bound['mat_param'].get('mum', 1.0)
+            mu = (mup + mum) * pi / (mum - mup)
+            for i in xrange(bound['n_subint']):
+                S11[m, m] += mu
+                m += 1
+        if not iflg:
+            last = nd-1
+            n = 0
+            for bound in list_cond:
+                section_m = bound['section']
+                n_subint_m = bound['n_subint']
+                for si in xrange(n_subint_m):
+                    subint_len = bound['section'].getSubinterval(i, n_subint_m).len
+                    self.Sl[n, last] = subint_len/S00[n, n]
+                    self.Sl[last, n] = subint_len/bound_m['mat_param'].get('mup',  1.0)
+                    n += 1
+
+# TODO: any and ortho functions.
+#    def smn(self, block_S, list1, list2, bDiel):
+#        if self.structure.is_ortho:
+#            _smn.any(block_S, list1, list2, bDiel, self.structure.iflg)
+#        else:
+#            _smn.any(block_S, list1, list2, bDiel, self.structure.iflg)
 
     def update(self, structure):
         pass

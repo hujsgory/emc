@@ -46,28 +46,6 @@ class Test_Section(unittest.TestCase):
         self.assertEqual(self.s.getSubinterval(2,4),Section(Coord(0.25,0.5),Coord(0.125,0.25)))
         self.assertRaises(ValueError,self.s.getSubinterval,4,4)
 
-class Test_Smn(unittest.TestCase):
-    def setUp(self):
-        self.s1=Section(Coord(0.0,0.0),Coord(1.0,1.0))
-        self.s2=Section(Coord(1.0,1.0),Coord(2.0,0.0))
-        self.conf=Structure()
-        self.conf.diel(erp=2.0)
-        self.conf.add(self.s1)
-        self.conf.cond(erp=2.0)
-        self.conf.add(self.s2)
-        self.conf.set_subintervals(3)
-        self.smn=Smn(self.conf)
-        self.smn.fill_SC()
-    def test_fillS00(self):
-        self.assertTrue(numpy.allclose(self.smn.matrix_SC.A00, read_matrix('_mom2d_Smn_CalcS00.txt')))
-    def test_fillS01(self):
-        self.assertTrue(numpy.allclose(self.smn.matrix_SC.A01, read_matrix('_mom2d_Smn_CalcS01.txt')))
-    def test_fillS10(self):
-        self.assertTrue(numpy.allclose(self.smn.matrix_SC.A10, read_matrix('_mom2d_Smn_CalcS10.txt')))
-    def test_fillS11(self):
-        self.assertTrue(numpy.allclose(self.smn.matrix_SC.A11, read_matrix('_mom2d_Smn_CalcS11.txt')))
-
-
 class Test_Structure(unittest.TestCase):
     def setUp(self):
         self.c1=Coord(0.0,0.0)
@@ -123,7 +101,29 @@ class Test_Structure(unittest.TestCase):
         self.conf.add(Section(self.c1,self.c7))
         self.assertFalse(self.conf.is_ortho())
 
-class Test_RLGC(unittest.TestCase):
+class Test_new_RLGC_1(unittest.TestCase):
+    def setUp(self):
+        self.s1=Section(Coord(0.0,0.0),Coord(1.0,1.0))
+        self.s2=Section(Coord(1.0,1.0),Coord(2.0,0.0))
+        self.conf=Structure()
+        self.conf.diel(erp=2.0)
+        self.conf.add(self.s1)
+        self.conf.cond(erp=2.0)
+        self.conf.add(self.s2)
+        self.conf.set_subintervals(3)
+        self.rlgc=RLGC(self.conf)
+        self.rlgc.fill_Sc()
+        self.nc = self.rlgc.structure.nc
+    def test_fillS00(self):
+        self.assertTrue(numpy.allclose(self.rlgc.Sc[:self.nc,:self.nc], read_matrix('_mom2d_Smn_CalcS00.txt')))
+    def test_fillS01(self):
+        self.assertTrue(numpy.allclose(self.rlgc.Sc[:self.nc,self.nc:], read_matrix('_mom2d_Smn_CalcS01.txt')))
+    def test_fillS10(self):
+        self.assertTrue(numpy.allclose(self.rlgc.Sc[self.nc:,:self.nc], read_matrix('_mom2d_Smn_CalcS10.txt')))
+    def test_fillS11(self):
+        self.assertTrue(numpy.allclose(self.rlgc.Sc[self.nc:,self.nc:], read_matrix('_mom2d_Smn_CalcS11.txt')))
+
+class Test_RLGC_2(unittest.TestCase):
     def setUp(self):
         self.conf=Structure()
         self.conf.diel(erp=2.0,mup=5.0)
@@ -135,17 +135,18 @@ class Test_RLGC(unittest.TestCase):
         self.conf.cond(erp=3.0,mup=5.0)
         self.conf.add(Section(Coord(0.5,0.5),Coord(0.0,0.0)),4)
         self.rlgc=RLGC(self.conf)
-        self.rlgc.calc_LC()
+        self.rlgc.C()
+        self.rlgc.L()
     def test_calcC1(self):
-        self.assertEqual(self.rlgc.smn.structure.n_cond,2,self.rlgc.smn.structure.n_cond)
+        self.assertEqual(self.rlgc.structure.n_cond,2,self.rlgc.structure.n_cond)
     def test_calcC2(self):
-        self.assertTrue(numpy.allclose(self.rlgc.matrix_QC[0:9].T, read_matrix('_mom2d_RLGC_CalcC2.txt'), rtol=1e-6))
+        self.assertTrue(numpy.allclose(self.rlgc.Qc[0:9].T, read_matrix('_mom2d_RLGC_CalcC2.txt'), rtol=1e-6))
     def test_calcC5(self):
         self.assertTrue(numpy.allclose(self.rlgc.mC, read_matrix('_mom2d_RLGC_CalcC5.txt'), rtol=1e-6))
     def test_calcL1(self):
         self.assertTrue(numpy.allclose(self.rlgc.mL, read_matrix('_mom2d_RLGC_CalcL1.txt'), rtol=1e-6))
     def test_calcL3(self):
-        self.assertTrue(numpy.allclose(self.rlgc.matrix_QL[0:9].T, read_matrix('_mom2d_RLGC_CalcL3.txt'), rtol=1e-6))
+        self.assertTrue(numpy.allclose(self.rlgc.Ql[0:9].T, read_matrix('_mom2d_RLGC_CalcL3.txt'), rtol=1e-6))
 
 
 class Test_Board1(unittest.TestCase):
@@ -183,42 +184,35 @@ class Test_Board2(unittest.TestCase):
         self.board.conductor(800e-6,401e-6,18e-6)
         self.board.medium['mu']=1.00000037
     def test_1(self):
-        conf=self.board.to_structure()
+        conf=self.board.postprocess()
         x0,x1,x2,x3=0.0,800e-6,1201e-6,2001e-6
         y1,y2=990e-6,1008e-6
         er1,er2=4.3,1.0
         td1,td2=0.0,0.0
         mu1,mu2=1.0,1.00000037
-        answ1=[{'section':Section(Coord(x1,y1),Coord(x2,y1)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1},'obj_count':1,'sect_count':0,'grounded':False},\
-               {'section':Section(Coord(x2,y1),Coord(x2,y2)),'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':1,'grounded':False},\
-               {'section':Section(Coord(x1,y2),Coord(x1,y1)),'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':2,'grounded':False},\
-               {'section':Section(Coord(x2,y2),Coord(x1,y2)),'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':3,'grounded':False}]
-        answ2=[{'section':Section(Coord(x0,y1),Coord(x1,y1)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':2,'sect_count':0},\
-               {'section':Section(Coord(x2,y1),Coord(x3,y1)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':2,'sect_count':1}]
+        answ1=[{'section':Section(Coord(x1,y1),Coord(x2,y1)),'_section_':[x1,y1,x2,y1],'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1},'obj_count':1,'sect_count':0,'grounded':False},\
+               {'section':Section(Coord(x2,y1),Coord(x2,y2)),'_section_':[x2,y1,x2,y2],'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':1,'grounded':False},\
+               {'section':Section(Coord(x1,y2),Coord(x1,y1)),'_section_':[x1,y2,x1,y1],'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':2,'grounded':False},\
+               {'section':Section(Coord(x2,y2),Coord(x1,y2)),'_section_':[x2,y2,x1,y2],'n_subint':1,'mat_param':{'erp':er2,'tdp':td2,'mup':mu2},'obj_count':1,'sect_count':3,'grounded':False}]
+        answ2=[{'section':Section(Coord(x0,y1),Coord(x1,y1)),'_section_':[x0,y1,x1,y1],'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':2,'sect_count':0},\
+               {'section':Section(Coord(x2,y1),Coord(x3,y1)),'_section_':[x2,y1,x3,y1],'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':2,'sect_count':1}]
         self.assertTrue(conf.list_cond==answ1)
         self.assertTrue(conf.list_diel==answ2)
     def test_2(self):
         self.board.cover(31e-6,4.8)
-        conf=self.board.to_structure()
+        conf=self.board.postprocess()
         er1,er2=4.8,1.0
         td1,td2=0.0,0.0
         mu1,mu2=1.0,1.00000037
         x0,x1,x2,x3=0.0,769e-6,1232e-6,2001e-6
         y2,y3=1021e-6,1039e-6
         answ=[\
-              {'section':Section(Coord(x0,y2),Coord(x1,y2)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':0},\
-              {'section':Section(Coord(x1,y2),Coord(x1,y3)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':1},\
-              {'section':Section(Coord(x1,y3),Coord(x2,y3)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':2},\
-              {'section':Section(Coord(x2,y3),Coord(x2,y2)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':3},\
-              {'section':Section(Coord(x2,y2),Coord(x3,y2)),'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':4},\
+              {'section':Section(Coord(x0,y2),Coord(x1,y2)),'_section_':[x0,y2,x1,y2],'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':0},\
+              {'section':Section(Coord(x1,y2),Coord(x1,y3)),'_section_':[x1,y2,x1,y3],'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':1},\
+              {'section':Section(Coord(x1,y3),Coord(x2,y3)),'_section_':[x1,y3,x2,y3],'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':2},\
+              {'section':Section(Coord(x2,y3),Coord(x2,y2)),'_section_':[x2,y3,x2,y2],'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':3},\
+              {'section':Section(Coord(x2,y2),Coord(x3,y2)),'_section_':[x2,y2,x3,y2],'n_subint':1,'mat_param':{'erp':er1,'tdp':td1,'mup':mu1,'erm':er2,'tdm':td2,'mum':mu2},'obj_count':3,'sect_count':4},\
               ]
         self.assertTrue(conf.list_diel[2:]==answ)
-
-
-class Test_Matrix(object):
-    def SetUp(self):
-        pass
-    def test(self):
-        pass
 
 unittest.main()
