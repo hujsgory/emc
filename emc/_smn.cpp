@@ -1,3 +1,4 @@
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -334,7 +335,10 @@ static PyMethodDef _methods[]={{"any_cond", _smn_any_cond, METH_VARARGS, _smn_an
 extern "C" {
 #endif
 
-__declspec(dllexport) void init_smn(){
+#ifdef WIN32
+__declspec(dllexport)
+#endif
+void init_smn(){
     Py_InitModule("_smn",_methods);
 }
 

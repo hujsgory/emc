@@ -9,7 +9,10 @@ class StackEditor():
 
     def initialize(self):
         self.parent.title('Stack Editor')
-        self.parent.iconbitmap(default='stack.ico')
+        try:
+            self.parent.iconbitmap(default='stack.ico')
+        except tk.TclError:
+            pass
         self.menubar = tk.Menu(self.parent, tearoff=0)
         self.menubar.add_command(label='Open', command=self.openfile)
         self.menubar.add_command(label='Save', command=self.savefile)
