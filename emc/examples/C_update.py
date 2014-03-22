@@ -11,10 +11,10 @@ board = Board()
 board.layer(h, er)
 board.conductor(d, w, t)
 board.conductor(s, w, t)
-structure=board.to_structure()
-structure.set_subintervals(100)
-lc=RLGC(structure)
-lc.calc_C()
+struct = board.postprocess()
+struct.set_subintervals(100)
+lc=RLGC(struct)
+lc.C()
 
 w=1.5e-3
 er=5.5
@@ -22,9 +22,9 @@ board = Board()
 board.layer(h, er)
 board.conductor(d, w, t)
 board.conductor(s, w, t)
-structure = board.to_structure()
-structure.set_subintervals(100)
-lc.update(structure)
+struct = board.postprocess()
+struct.set_subintervals(100)
+lc.update(struct)
 print "iterative: \n", lc.mC
-lc.calc_C()
+lc.C()
 print "direct: \n", lc.mC

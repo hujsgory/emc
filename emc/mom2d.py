@@ -546,13 +546,16 @@ class RLGC(object):
         nc = self.structure.nc
         nd = self.structure.nd_L
         n_cond = self.structure.n_cond
-        list_cond = self.structure.list_cond
         self.fill_Sl()
         self.fact_Sl = la.lu_factor(self.Sl)
         exc_v = numpy.zeros((nc+nd, n_cond))
         exc_v[:nc] = self.exc_v
-        
         self.Ql = la.lu_solve(self.fact_Sl, exc_v)
+        self.postprocess_L()
+
+    def postprocess_L(self):
+        n_cond = self.structure.n_cond
+        list_cond = self.structure.list_cond
         beg, m, old_cond = 0, 0, self.structure.not_grounded_cond[0]['obj_count']
         for bound in list_cond:
             end = beg + bound['n_subint']
@@ -576,12 +579,16 @@ class RLGC(object):
         nc = self.structure.nc
         nd = self.structure.nd_C
         n_cond = self.structure.n_cond
-        list_cond = self.structure.list_cond
         self.fill_Sc()
         self.fact_Sc = la.lu_factor(self.Sc)
         exc_v = numpy.zeros((nc+nd, n_cond))
         exc_v[:nc] = self.exc_v
         self.Qc = la.lu_solve(self.fact_Sc, exc_v)
+        self.postprocess_C()
+
+    def postprocess_C(self):
+        n_cond = self.structure.n_cond
+        list_cond = self.structure.list_cond
         beg, m, old_cond = 0, 0, self.structure.not_grounded_cond[0]['obj_count']
         for bound in list_cond:
             end = beg + bound['n_subint']
@@ -687,4 +694,23 @@ class RLGC(object):
 #            _smn.any(block_S, list1, list2, bDiel, self.structure.iflg)
 
     def update(self, structure):
-        pass
+        self.structure = structure.postprocess()
+        nc = self.structure.nc
+        n_cond = self.structure.n_cond
+        list_cond = self.structure.list_cond
+        if self.is_calc_C:
+            self.fill_Sc()
+            nd = self.structure.nd_C
+            exc_v = numpy.zeros((nc+nd, n_cond))
+            exc_v[:nc] = self.exc_v
+            print self.Sc.shape, exc_v.shape
+            self.Qc = it.bicgstab(A=self.Sc, b=exc_v, M=self.fact_Sc, maxiter=30, tol=1e-16)
+            self.postprocess_C()
+            
+        if self.is_calc_L:
+            self.fill_Sl()
+            nd = self.structure.nd_L
+            exc_v = numpy.zeros((nc+nd, n_cond))
+            exc_v[:nc] = self.exc_v
+            self.Ql = it.bicgstab(A=self.Sl, b=exc_v, M=self.fact_Sl, maxiter=30, tol=1e-16)
+            self.postprocess_L()
