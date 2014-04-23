@@ -5,6 +5,7 @@ import numpy
 import scipy.linalg as la
 import _smn
 import scipy.sparse.linalg as it
+import block
 
 eps0 = 8.854187817e-12 # dielectric constant
 Coef_C = 4*pi*eps0
@@ -305,58 +306,6 @@ class Board(object):
                 structure.add(Section(beg, end))
         return structure.postprocess()
 
-
-    ## \function iterative
-    #  \brief Stabilized bi-conjugate gradient method with preconditioning (BiCGStab)
-    #  \param M Matrix object with factorized matrixes S
-    #  \param b vector of right-hand members
-def iterative(self, M, b, tol = 1e-30, max_iter = 50):
-        #it.bicgstab(A=,M=M)
-        nc = self.nc
-        nd = self.nd
-        n_cond = b.shape[1]
-        A = self
-        X = numpy.ones((nc+nd, n_cond))
-        V = numpy.zeros((nc+nd, n_cond))
-        P = numpy.zeros((nc+nd, n_cond))
-        R = b - A.dot(X)
-        Rt = R.copy()
-        S = numpy.zeros((nc+nd, n_cond))
-        T = numpy.zeros((nc+nd, n_cond))
-        norm_R0 = la.norm(R)
-        alpha = numpy.ones(n_cond)
-        beta = numpy.zeros(n_cond)
-        rho = numpy.zeros(n_cond)
-        rho_old = numpy.ones(n_cond)
-        omega = numpy.ones(n_cond)
-        for niter in xrange(max_iter):
-            for i in xrange(n_cond):
-                rho[i] = numpy.dot(Rt[:,i], R[:,i])
-                if rho[i] == 0.0:
-                    break
-                beta[i] = (rho[i]/rho_old[i])*(alpha[i]/omega[i])
-            P = R + beta*(P - omega*V)
-            Pt = M.solve(P)
-            A.dot(Pt, V)
-            for i in xrange(n_cond):
-                alpha[i] = rho[i]/numpy.dot(Rt[:,i], V[:,i])
-                S[:,i] = R[:,i] - alpha[i]*V[:,i]
-                X[:,i] += alpha[i]*Pt[:,i]
-            if la.norm(S)/norm_R0 <= tol:
-                break
-            St = M.solve(S)
-            A.dot(St, T)
-            for i in xrange(n_cond):
-                omega[i] = numpy.dot(T[:,i], S[:,i])/numpy.dot(T[:,i], T[:,i])
-                X[:,i] += omega[i]*St[:,i]
-                R[:,i] = S[:,i] - omega[i]*T[:,i]
-            norm_R = la.norm(R)/norm_R0
-            #print norm_R
-            if norm_R <= tol:
-                 break
-            rho_old = rho
-        #print niter
-        return X
 
 ## \class Structure
 # \brief Object contain a list of a conductors and a dielectrics
@@ -704,7 +653,7 @@ class RLGC(object):
             exc_v = numpy.zeros((nc+nd, n_cond))
             exc_v[:nc] = self.exc_v
             print self.Sc.shape, exc_v.shape
-            self.Qc = it.bicgstab(A=self.Sc, b=exc_v, M=self.fact_Sc, maxiter=30, tol=1e-16)
+            self.Qc = block.bicgstab(A=self.Sc, b=exc_v, M=self.fact_Sc)
             self.postprocess_C()
             
         if self.is_calc_L:
@@ -712,5 +661,5 @@ class RLGC(object):
             nd = self.structure.nd_L
             exc_v = numpy.zeros((nc+nd, n_cond))
             exc_v[:nc] = self.exc_v
-            self.Ql = it.bicgstab(A=self.Sl, b=exc_v, M=self.fact_Sl, maxiter=30, tol=1e-16)
+            self.Ql = block.bicgstab(A=self.Sl, b=exc_v, M=self.fact_Sl)
             self.postprocess_L()
