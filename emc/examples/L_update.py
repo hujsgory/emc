@@ -15,9 +15,9 @@ struct = board.postprocess()
 struct.set_subintervals(100)
 lc=RLGC(struct)
 lc.L()
+print "first structure: \n", lc.mL
 
-w=1.5e-3
-er=5.5
+t=35e-6
 board = Board()
 board.layer(h, er)
 board.conductor(d, w, t)

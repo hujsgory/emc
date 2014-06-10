@@ -44,6 +44,172 @@ class Coord(object):
         return hypot(_coord.y-self.y, _coord.x-self.x)
 
 
+## \class Structure
+# \brief Object contain a list of a conductors and a dielectrics
+class Structure(object):
+    def __init__(self):
+        self.list_cond = list()
+        self.list_diel = list()
+        self.iflg = True
+        self.grounded = False
+        self.mat_type = False     # mat_type: False - Conductor-Dielectric bound,  True - Dielectric-Dielectric bound
+        self.obj_count = 0
+        self.sect_count = 0
+        self.mat_param = dict()
+        self.iter_idx = 0
+
+    def __iter__(self):
+        self.iter_idx = 0
+        return self
+
+    def next(self):
+        self.iter_idx += 1
+        if self.iter_idx > len(self.list_cond) + len(self.list_diel):
+            raise StopIteration
+        if self.iter_idx <= len(self.list_cond):
+            return self.list_cond[self.iter_idx-1]
+        else:
+            return self.list_diel[self.iter_idx-len(self.list_cond)-1]
+
+    ## \fn is_intersection
+    # \brief The function checking the two boundaries on intersection
+    # \param sect1 \param sect2 two object of Section type
+    def is_intersection(self, sect1, sect2):
+        # Coeficients of Ax+By+D=0
+        a1 = -sect1.dy
+        b1 =  sect1.dx
+        d1 = -(a1*sect1.beg.x + b1*sect1.beg.y)
+        a2 = -sect2.dy
+        b2 =  sect2.dx
+        d2 = -(a2*sect2.beg.x + b2*sect2.beg.y)
+
+        # Calculate halfplane of sections ends
+        seg1_line2_start = a2*sect1.beg.x + b2*sect1.beg.y + d2
+        seg1_line2_end   = a2*sect1.end.x + b2*sect1.end.y + d2
+        seg2_line1_start = a1*sect2.beg.x + b1*sect2.beg.y + d1
+        seg2_line1_end   = a1*sect2.end.x + b1*sect2.end.y + d1
+
+        h1 = seg1_line2_start*seg1_line2_end
+        h2 = seg2_line1_start*seg2_line1_end
+
+        # Ends located in the different halfplane
+        if h1 < 0. and h2 < 0.:
+            return True
+        # Collinear (both ends of segments lie on one line)
+        if atan2(a1, b1) == atan2(a2, b2) and d1 == d2:
+            #   |------|======|------|
+            # fmin1  fmin2  fmax1  fmax2
+            fmin1 = min(sect1.beg.x, sect1.end.x)
+            fmin2 = min(sect2.beg.x, sect2.end.x)
+            fmax1 = max(sect1.beg.x, sect1.end.x)
+            fmax2 = max(sect2.beg.x, sect2.end.x)
+            if fmin1 < fmax2 and fmin2 < fmax1:
+                return True
+            fmin1 = min(sect1.beg.y, sect1.end.y)
+            fmin2 = min(sect2.beg.y, sect2.end.y)
+            fmax1 = max(sect1.beg.y, sect1.end.y)
+            fmax2 = max(sect2.beg.y, sect2.end.y)
+            if fmin1 < fmax2 and fmin2 < fmax1:
+                return True
+        return False
+    
+    ## \fn check_intersection
+    # \brief The function checking the added boundary on intersection with other boundaries 
+    def check_intersection(self, section):
+        return reduce(lambda r, bound: r or self.is_intersection(bound['section'], section), self, False)
+    
+    ## \fn is_ortho
+    # \brief The function checking the list of boundaries on orthogonality
+    def is_ortho(self):
+        return reduce(lambda r, bound: r and (bound['section'].dx==0.0 or bound['section'].dy==0.0), self, True)
+    
+    ## \fn add
+    # \brief Boundary addition
+    # \param section - Section() object
+    # \param n_subint - number of subintervals
+    def add(self, section, n_subint=1):
+        if type(section) is Section and type(n_subint) is int:
+            if self.check_intersection(section):
+                raise ValueError
+            bound = {'section': section,
+                     'n_subint': n_subint,
+                     'mat_param': self.mat_param,
+                     'obj_count': self.obj_count,
+                     'sect_count': self.sect_count}
+            if self.mat_type:
+                self.list_diel.append(bound)
+            else:
+                bound['grounded'] = self.grounded
+                self.list_cond.append(bound)
+            self.sect_count += 1
+        else:
+            raise TypeError
+
+    ## \fn cond
+    # \brief Conductor properties setting
+    # \param mat_param - dictionary which can have following entries:
+    #  erp - relative permittivity on right side of section,  erm - on left side
+    #  tdp, tdm - dielectric loss tangent
+    #  mup, mum - relative magnetic permeability
+    def cond(self, **mat_param):
+        self.grounded = False
+        self.mat_param = mat_param
+        self.mat_type = False
+        self.obj_count += 1
+        self.sect_count = 0
+
+    def ground_cond(self, **mat_param):
+        self.grounded = True
+        self.mat_param = mat_param
+        self.mat_type = False
+        self.obj_count += 1
+        self.sect_count = 0
+
+    def diel(self, **mat_param):
+        self.mat_param = mat_param
+        self.mat_type = True
+        self.obj_count += 1
+        self.sect_count = 0
+
+    ## \function set_subintervals
+    #  \brief set number of a segments for the each boundary of the structure
+    #  \param n_subint number of the segments
+    def set_subintervals(self, n_subint):
+        for bound in self:
+            bound['n_subint'] = n_subint
+
+    ## \function autosegment
+    #  \brief calculate and set number of a segments to length subinterval for the each boundary of the structure
+    #  \param length length of subinterval
+    def len_subint(self, length):
+        for bound in self:
+            bound['n_subint'] = int(round(bound['section'].len/length))
+
+    def adaptive_segment(self, criterion):
+        pass
+
+    def smart_segment(self):
+        pass
+
+    def postprocess(self):
+        self.not_grounded_cond = filter(lambda x: not x['grounded'], self.list_cond)
+        if len(self.not_grounded_cond) <= 0:
+            raise ValueError('Not grounded conductors is not exist')
+        self.nc = reduce(lambda r, x: r + x['n_subint'], self.list_cond, 0)
+        self.n_cond = len(set(map(lambda x: x['obj_count'], self.not_grounded_cond)))
+        self.list_diel_C = filter(lambda x: x['mat_param'].get('erp', 1.0) != x['mat_param'].get('erm', 1.0), self.list_diel)
+        self.list_diel_L = filter(lambda x: x['mat_param'].get('mup', 1.0) != x['mat_param'].get('mum', 1.0), self.list_diel)
+        self.nd_C = reduce(lambda r, x: r + x['n_subint'], self.list_diel_C, 0)
+        self.nd_L = reduce(lambda r, x: r + x['n_subint'], self.list_diel_L, 0)
+        if not self.iflg:
+            self.nd_C += 1
+            self.nd_L += 1
+        for bound in self:
+            section = bound['section']
+            bound['_section_'] = [section.beg.x, section.beg.y, section.end.x, section.end.y]
+        return self
+
+
 ## \class Section
 class Section(object):
 
@@ -307,172 +473,6 @@ class Board(object):
         return structure.postprocess()
 
 
-## \class Structure
-# \brief Object contain a list of a conductors and a dielectrics
-class Structure(object):
-    def __init__(self):
-        self.list_cond = list() #Bound_list()
-        self.list_diel = list() #Bound_list()
-        self.iflg = True
-        self.grounded = False
-        self.mat_type = False     # mat_type: False - Conductor-Dielectric bound,  True - Dielectric-Dielectric bound
-        self.obj_count = 0
-        self.sect_count = 0
-        self.mat_param = dict()
-        self.iter_idx = 0
-
-    def __iter__(self):
-        self.iter_idx = 0
-        return self
-
-    def next(self):
-        self.iter_idx += 1
-        if self.iter_idx > len(self.list_cond) + len(self.list_diel):
-            raise StopIteration
-        if self.iter_idx <= len(self.list_cond):
-            return self.list_cond[self.iter_idx-1]
-        else:
-            return self.list_diel[self.iter_idx-len(self.list_cond)-1]
-
-    ## \fn is_intersection
-    # \brief The function checking the two boundaries on intersection
-    # \param sect1 \param sect2 two object of Section type
-    def is_intersection(self, sect1, sect2):
-        # Coeficients of Ax+By+D=0
-        a1 = -sect1.dy
-        b1 =  sect1.dx
-        d1 = -(a1*sect1.beg.x + b1*sect1.beg.y)
-        a2 = -sect2.dy
-        b2 =  sect2.dx
-        d2 = -(a2*sect2.beg.x + b2*sect2.beg.y)
-
-        # Calculate halfplane of sections ends
-        seg1_line2_start = a2*sect1.beg.x + b2*sect1.beg.y + d2
-        seg1_line2_end   = a2*sect1.end.x + b2*sect1.end.y + d2
-        seg2_line1_start = a1*sect2.beg.x + b1*sect2.beg.y + d1
-        seg2_line1_end   = a1*sect2.end.x + b1*sect2.end.y + d1
-
-        h1 = seg1_line2_start*seg1_line2_end
-        h2 = seg2_line1_start*seg2_line1_end
-
-        # Ends located in the different halfplane
-        if h1 < 0. and h2 < 0.:
-            return True
-        # Collinear (both ends of segments lie on one line)
-        if atan2(a1, b1) == atan2(a2, b2) and d1 == d2:
-            #   |------|======|------|
-            # fmin1  fmin2  fmax1  fmax2
-            fmin1 = min(sect1.beg.x, sect1.end.x)
-            fmin2 = min(sect2.beg.x, sect2.end.x)
-            fmax1 = max(sect1.beg.x, sect1.end.x)
-            fmax2 = max(sect2.beg.x, sect2.end.x)
-            if fmin1 < fmax2 and fmin2 < fmax1:
-                return True
-            fmin1 = min(sect1.beg.y, sect1.end.y)
-            fmin2 = min(sect2.beg.y, sect2.end.y)
-            fmax1 = max(sect1.beg.y, sect1.end.y)
-            fmax2 = max(sect2.beg.y, sect2.end.y)
-            if fmin1 < fmax2 and fmin2 < fmax1:
-                return True
-        return False
-    
-    ## \fn check_intersection
-    # \brief The function checking the added boundary on intersection with other boundaries 
-    def check_intersection(self, section):
-        return reduce(lambda r, bound: r or self.is_intersection(bound['section'], section), self, False)
-    
-    ## \fn is_ortho
-    # \brief The function checking the list of boundaries on orthogonality
-    def is_ortho(self):
-        return reduce(lambda r, bound: r and (bound['section'].dx==0.0 or bound['section'].dy==0.0), self, True)
-    
-    ## \fn add
-    # \brief Boundary addition
-    # \param section - Section() object
-    # \param n_subint - number of subintervals
-    def add(self, section, n_subint=1):
-        if type(section) is Section and type(n_subint) is int:
-            if self.check_intersection(section):
-                raise ValueError
-            bound = {'section': section,
-                     'n_subint': n_subint,
-                     'mat_param': self.mat_param,
-                     'obj_count': self.obj_count,
-                     'sect_count': self.sect_count}
-            if self.mat_type:
-                self.list_diel.append(bound)
-            else:
-                bound['grounded'] = self.grounded
-                self.list_cond.append(bound)
-            self.sect_count += 1
-        else:
-            raise TypeError
-
-    ## \fn cond
-    # \brief Conductor properties setting
-    # \param mat_param - dictionary which can have following entries:
-    #  erp - relative permittivity on right side of section,  erm - on left side
-    #  tdp, tdm - dielectric loss tangent
-    #  mup, mum - relative magnetic permeability
-    def cond(self, **mat_param):
-        self.grounded = False
-        self.mat_param = mat_param
-        self.mat_type = False
-        self.obj_count += 1
-        self.sect_count = 0
-
-    def ground_cond(self, **mat_param):
-        self.grounded = True
-        self.mat_param = mat_param
-        self.mat_type = False
-        self.obj_count += 1
-        self.sect_count = 0
-
-    def diel(self, **mat_param):
-        self.mat_param = mat_param
-        self.mat_type = True
-        self.obj_count += 1
-        self.sect_count = 0
-
-    ## \function set_subintervals
-    #  \brief set number of a segments for the each boundary of the structure
-    #  \param n_subint number of the segments
-    def set_subintervals(self, n_subint):
-        for bound in self:
-            bound['n_subint'] = n_subint
-
-    ## \function autosegment
-    #  \brief calculate and set number of a segments to length subinterval for the each boundary of the structure
-    #  \param length length of subinterval
-    def len_subint(self, length):
-        for bound in self:
-            bound['n_subint'] = int(round(bound['section'].len/length))
-
-    def adaptive_segment(self, criterion):
-        pass
-
-    def smart_segment(self):
-        pass
-
-    def postprocess(self):
-        self.not_grounded_cond = filter(lambda x: not x['grounded'], self.list_cond)
-        if len(self.not_grounded_cond) <= 0:
-            raise ValueError('Not grounded conductors is not exist')
-        self.nc = reduce(lambda r, x: r + x['n_subint'], self.list_cond, 0)
-        self.n_cond = len(set(map(lambda x: x['obj_count'], self.not_grounded_cond)))
-        self.list_diel_C = filter(lambda x: x['mat_param'].get('erp', 1.0) != x['mat_param'].get('erm', 1.0), self.list_diel)
-        self.list_diel_L = filter(lambda x: x['mat_param'].get('mup', 1.0) != x['mat_param'].get('mum', 1.0), self.list_diel)
-        self.nd_C = reduce(lambda r, x: r + x['n_subint'], self.list_diel_C, 0)
-        self.nd_L = reduce(lambda r, x: r + x['n_subint'], self.list_diel_L, 0)
-        if not self.iflg:
-            self.nd_C += 1
-            self.nd_L += 1
-        for bound in self:
-            section = bound['section']
-            bound['_section_'] = [section.beg.x, section.beg.y, section.end.x, section.end.y]
-        return self
-
-
 # \brief Matrix which binds a vector of charges and a vector of potential
 class RLGC(object):
     def __init__(self,structure):
@@ -652,8 +652,7 @@ class RLGC(object):
             nd = self.structure.nd_C
             exc_v = numpy.zeros((nc+nd, n_cond))
             exc_v[:nc] = self.exc_v
-            print self.Sc.shape, exc_v.shape
-            self.Qc = block.bicgstab(A=self.Sc, b=exc_v, M=self.fact_Sc)
+            self.Qc = block.iterative(A=self.Sc, b=exc_v, M=self.fact_Sc, max_iter = 100)
             self.postprocess_C()
             
         if self.is_calc_L:
@@ -661,5 +660,5 @@ class RLGC(object):
             nd = self.structure.nd_L
             exc_v = numpy.zeros((nc+nd, n_cond))
             exc_v[:nc] = self.exc_v
-            self.Ql = block.bicgstab(A=self.Sl, b=exc_v, M=self.fact_Sl)
+            self.Ql = block.iterative(A=self.Sl, b=exc_v, M=self.fact_Sl, max_iter = 100)
             self.postprocess_L()

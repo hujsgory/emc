@@ -1,12 +1,17 @@
 Modules for solving a quasistatic problems
 
 Modules:
-    mom2d.py - the module for calculating the matrices L and C of the two-dimensional cross-sectional structure
+    mom2d - method of moments for calculating the matrices of line parameters - inductance, capacitance (resistance and conductance in the future) of the two-dimensional cross-sectional structure
+    (in the future) response - response of scheme with lumped and distributed parameters
+    (in the future) mom3d - method of moments for calculating the matrices of parameters of three dimensional structures
+    (in the future) fdtd - finite difference time domain method for calculating electromagnetic fields
+    (in the future) fem - finite element method for calculating electromagnetic fields
 
 Required:
-    python-2.7
+    python-2
     numpy
+    scipy
+    (in the future) CGAL and python binding to it
 
 Install:
-
     python setup.py install
